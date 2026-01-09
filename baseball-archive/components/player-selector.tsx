@@ -63,14 +63,21 @@ export default function PlayerSelector() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>선수 선택</Text>
         <Text style={styles.subtitle}>각 포지션별로 선수를 선택하세요</Text>
       </View>
 
       {/* 포지션 리스트 (세로로 나열) */}
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        nestedScrollEnabled={true}
+        bounces={true}
+        scrollEnabled={true}
+        alwaysBounceVertical={true}>
         {positions.map((position) => {
           const players = getPlayersByPosition(position);
           const expanded = expandedPosition === position;
@@ -148,45 +155,45 @@ export default function PlayerSelector() {
           );
         })}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: 'transparent',
   },
   header: {
-    padding: 20,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    display: 'none',
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: 4,
+    display: 'none',
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666666',
+    display: 'none',
   },
   scrollView: {
     flex: 1,
+    width: '100%',
+    minHeight: 0,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 40,
+    paddingTop: 10,
   },
   positionSection: {
     marginBottom: 1,
   },
   positionHeader: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#6d4c41',
     padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#5d4037',
     minHeight: 60,
     borderRadius: 12,
     marginHorizontal: 12,
@@ -196,13 +203,13 @@ const styles = StyleSheet.create({
       width: 0,
       height: 1,
     },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.2,
     shadowRadius: 2,
-    elevation: 1,
+    elevation: 2,
   },
   positionHeaderExpanded: {
-    backgroundColor: '#E3F2FD',
-    borderBottomColor: '#2196F3',
+    backgroundColor: '#8d6e63',
+    borderBottomColor: '#a1887f',
     borderBottomWidth: 2,
   },
   positionHeaderLeft: {
@@ -212,14 +219,14 @@ const styles = StyleSheet.create({
   },
   positionIcon: {
     fontSize: 14,
-    color: '#2196F3',
+    color: '#ffcc80',
     marginRight: 12,
     width: 20,
   },
   positionName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333333',
+    color: '#ffffff',
     minWidth: 60,
   },
   selectedPlayerInfo: {
@@ -232,28 +239,28 @@ const styles = StyleSheet.create({
   selectedPlayerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2196F3',
+    color: '#ffcc80',
     marginRight: 6,
   },
   selectedPlayerDetail: {
     fontSize: 14,
-    color: '#666666',
-    backgroundColor: '#E3F2FD',
+    color: '#ffffff',
+    backgroundColor: '#8d6e63',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
   },
   noSelection: {
     fontSize: 14,
-    color: '#AAAAAA',
+    color: '#a1887f',
     fontStyle: 'italic',
   },
   playerListContainer: {
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#4e342e',
     paddingVertical: 8,
   },
   playerCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#6d4c41',
     marginHorizontal: 16,
     marginVertical: 6,
     padding: 12,
@@ -265,14 +272,14 @@ const styles = StyleSheet.create({
       width: 0,
       height: 1,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 2,
     elevation: 2,
   },
   selectedCard: {
     borderWidth: 2,
-    borderColor: '#2196F3',
-    backgroundColor: '#E3F2FD',
+    borderColor: '#ffcc80',
+    backgroundColor: '#8d6e63',
   },
   checkboxContainer: {
     marginRight: 12,
@@ -282,17 +289,17 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#CCCCCC',
+    borderColor: '#a1887f',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
   },
   checkboxSelected: {
-    backgroundColor: '#2196F3',
-    borderColor: '#2196F3',
+    backgroundColor: '#ffcc80',
+    borderColor: '#ffcc80',
   },
   checkmark: {
-    color: '#FFFFFF',
+    color: '#5d4037',
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -307,16 +314,16 @@ const styles = StyleSheet.create({
   playerName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333333',
+    color: '#ffffff',
     marginRight: 8,
   },
   backNumber: {
     fontSize: 14,
-    color: '#666666',
+    color: '#ffcc80',
     fontWeight: '600',
   },
   teamName: {
     fontSize: 13,
-    color: '#888888',
+    color: '#efebe9',
   },
 });

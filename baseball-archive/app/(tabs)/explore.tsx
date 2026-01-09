@@ -97,6 +97,7 @@ export default function TabTwoScreen() {
     </ParallaxScrollView>
   );
 }
+
 const styles = StyleSheet.create({
   headerImage: {
     color: '#808080',
@@ -109,4 +110,3 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 });
-

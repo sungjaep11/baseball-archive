@@ -11,6 +11,7 @@ import {
     PanResponder // 1. Import PanResponder
 } from 'react-native';
 import NavBar from '../components/NavBar';
+import PlayerSelector from '../components/player-selector';
 
 const { width, height } = Dimensions.get('window');
 
@@ -95,7 +96,7 @@ export default function BaseballField() {
             case 'album':
                 return <Text style={styles.panelText}>📸 앨범 (Gallery Placeholder)</Text>;
             case 'roster':
-                return <Text style={styles.panelText}>👥 선수 목록 (Roster Placeholder)</Text>;
+                return <PlayerSelector />;
             case 'stats':
                 return <Text style={styles.panelText}>📊 통계 (Stats Placeholder)</Text>;
             default:
@@ -160,7 +161,7 @@ export default function BaseballField() {
                 {/* Panel Content */}
                 <View style={styles.panelBody}>
                     <Text style={styles.panelTitle}>
-                        {activeTab === 'album' ? '앨범' : activeTab === 'roster' ? '선수 목록' : '통계'}
+                        {activeTab === 'album' ? '앨범' : activeTab === 'roster' ? '선수 선택' : '통계'}
                     </Text>
                     {renderPanelContent()}
                 </View>
@@ -216,13 +217,15 @@ const styles = StyleSheet.create({
     },
     panelBody: {
         flex: 1,
-        padding: 20,
+        paddingTop: 20,
+        paddingHorizontal: 0,
     },
     panelTitle: {
         fontSize: 22,
         fontWeight: 'bold',
         color: '#ffffff',
         marginBottom: 20,
+        paddingHorizontal: 20,
     },
     panelText: {
         fontSize: 16,
