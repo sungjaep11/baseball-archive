@@ -1,14 +1,7 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import PlayerViewSet
-
-# Router 설정
-router = DefaultRouter()
-router.register(r'players', PlayerViewSet, basename='player')
-
-app_name = 'baseball'
+# urls.py
+from django.urls import path
+from .views import kbo_best_ba
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path("kbo/", kbo_best_ba),
 ]
-
