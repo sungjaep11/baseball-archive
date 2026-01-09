@@ -1,50 +1,20 @@
-# Welcome to your Expo app 👋
+타자 (한 시즌당 평균): 
+1. 타율
+2. 홈런
+3. 타점
+4. 도루
+5. 득점권 타율
+6. 선택: OPS, WAR, wRC+
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+투수: 평균자책점, 승/패/세이브/홀드, 탈삼진
 
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+라인업 시너지:
+- 좌/우 밸런스 (파이 차트)
+- 육각형 그래프 (파워, 정확도, 주루, 수비, 투수력)
+  -> 내 팀이 거포인지, 발 빠른 팀인지 등등
+- 연봉 총합/평균
+- 예상 승률 (공식 존재)
+   승률 0.600 이상: "이대로면 한국시리즈 우승 확정!"
+   승률 0.500 ~ 0.599: "가을야구 진출이 유력합니다."
+   승률 0.400 ~ 0.499: "중위권 싸움이 치열하겠네요."
+   승률 0.400 미만: "리빌딩이 시급합니다..."
