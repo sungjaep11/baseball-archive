@@ -1,45 +1,72 @@
-import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 interface NavBarProps {
     onTabSelect: (tabName: string) => void;
+    activeTab?: string | null;
 }
 
-export default function NavBar({ onTabSelect }: NavBarProps) {
+export default function NavBar({ onTabSelect, activeTab = null }: NavBarProps) {
+    const handleTabPress = (tabName: string) => {
+        onTabSelect(tabName);
+    };
+
     return (
         <View style={styles.container}>
-
             {/* 1. Album Button */}
             <TouchableOpacity
-                style={styles.button}
-                onPress={() => onTabSelect('album')}
+                style={styles.iconContainer}
+                onPress={() => handleTabPress('album')}
                 activeOpacity={0.7}
             >
-                <Ionicons name="images" size={26} color="#ffffff" />
-                <Text style={styles.label}>앨범</Text>
+                <View style={[
+                    styles.iconCircle,
+                    activeTab === 'album' && styles.activeIconCircle
+                ]}>
+                    <Ionicons 
+                        name="images-outline" 
+                        size={24} 
+                        color={activeTab === 'album' ? '#212121' : '#424242'} 
+                    />
+                </View>
             </TouchableOpacity>
 
-            {/* 2. Player List Button */}
+            {/* 2. Roster Button */}
             <TouchableOpacity
-                style={styles.button}
-                onPress={() => onTabSelect('roster')}
+                style={styles.iconContainer}
+                onPress={() => handleTabPress('roster')}
                 activeOpacity={0.7}
             >
-                <Ionicons name="people" size={26} color="#ffffff" />
-                <Text style={styles.label}>선수 목록</Text>
+                <View style={[
+                    styles.iconCircle,
+                    activeTab === 'roster' && styles.activeIconCircle
+                ]}>
+                    <Ionicons 
+                        name="people-outline" 
+                        size={24} 
+                        color={activeTab === 'roster' ? '#212121' : '#424242'} 
+                    />
+                </View>
             </TouchableOpacity>
 
             {/* 3. Stats Button */}
             <TouchableOpacity
-                style={styles.button}
-                onPress={() => onTabSelect('stats')}
+                style={styles.iconContainer}
+                onPress={() => handleTabPress('stats')}
                 activeOpacity={0.7}
             >
-                <Ionicons name="stats-chart" size={26} color="#ffffff" />
-                <Text style={styles.label}>통계</Text>
+                <View style={[
+                    styles.iconCircle,
+                    activeTab === 'stats' && styles.activeIconCircle
+                ]}>
+                    <Ionicons 
+                        name="stats-chart-outline" 
+                        size={24} 
+                        color={activeTab === 'stats' ? '#212121' : '#424242'} 
+                    />
+                </View>
             </TouchableOpacity>
-
         </View>
     );
 }
@@ -47,39 +74,38 @@ export default function NavBar({ onTabSelect }: NavBarProps) {
 const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
-        height: 90,
-        backgroundColor: '#5d4037', // Darker Mud Color
-
-        // Rounded top corners
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
-
+        height: 80,
+        backgroundColor: '#F0F4F7', // Light gray-blue background to match audience theme
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
         justifyContent: 'space-around',
         alignItems: 'center',
-        paddingBottom: 25,
-        paddingTop: 10,
-
-        // Shadow
+        paddingHorizontal: 10,
+        paddingBottom: 20,
+        paddingTop: 12,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: -3 },
-        shadowOpacity: 0.3,
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
         shadowRadius: 4,
-        elevation: 10,
+        elevation: 8,
         zIndex: 20,
-
-        // Subtle top border
-        borderTopWidth: 1,
-        borderTopColor: '#6d4c41',
     },
-    button: {
+    iconContainer: {
         alignItems: 'center',
         justifyContent: 'center',
         flex: 1,
     },
-    label: {
-        color: '#ffffff', // White text
-        fontSize: 12,
-        marginTop: 4,
-        fontWeight: '600',
+    iconCircle: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'transparent',
+        overflow: 'hidden',
+    },
+    activeIconCircle: {
+        backgroundColor: '#7896AA', // Gray-blue background for active icon to match audience theme
+        borderRadius: 24,
     },
 });
