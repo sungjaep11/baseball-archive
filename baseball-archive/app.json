@@ -1,25 +1,30 @@
 {
   "expo": {
-    "name": "baseball-archive",
+    "name": "",
     "slug": "baseball-archive",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/Logo_transparent.png",
     "scheme": "baseballarchive",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.baseballarchive"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/Logo_transparent.png",
+        "backgroundColor": "#E6F4FE"
+      },
+      "splash": {
+        "image": "./assets/images/Logo_transparent.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#FFFFFF"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.baseballarchive"
     },
     "web": {
       "output": "static",
@@ -30,13 +35,9 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+          "image": "./assets/images/Logo_transparent.png",
+          "resizeMode": "cover",
+          "backgroundColor": "#FFFFFF"
         }
       ]
     ],
