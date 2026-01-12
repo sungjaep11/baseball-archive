@@ -66,6 +66,19 @@ POSITION_MAPPING = {
     'RF': 'right',       # 우익수
 }
 
+# 한글 포지션 → 영문 포지션 매핑 (수비 테이블용)
+POSITION_KR_TO_EN = {
+    '포수': 'C',
+    '1루수': '1B',
+    '2루수': '2B',
+    '3루수': '3B',
+    '유격수': 'SS',
+    '좌익수': 'LF',
+    '중견수': 'CF',
+    '우익수': 'RF',
+    '지명타자': 'DH',
+}
+
 # 포지션별 ID 시작 번호 (중복 방지)
 POSITION_ID_OFFSET = {
     'pitcher': 1000,
@@ -113,10 +126,9 @@ def get_players_by_position_mysql(request):
         # 1. 투수 데이터 (kbo_pitchers_top150 테이블 - 크롤링 데이터)
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT 순위, 선수명, 팀명, ERA, G, W, L, SV, HLD, WPCT, IP, H, HR, BB, HBP, SO, R, ER, WHIP
-                FROM kbo_pitchers_top150
-                ORDER BY G DESC
-                LIMIT 100
+                SELECT `순위`, `선수명`, `팀명`, `ERA`, `G`, `W`, `L`, `SV`, `HLD`, `WPCT`, `IP`, `H`, `HR`, `BB`, `HBP`, `SO`, `R`, `ER`, `WHIP`
+                FROM `kbo_pitchers_top150`
+                ORDER BY `G` DESC
             """)
             columns = [col[0] for col in cursor.description]
             pitchers = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -139,41 +151,63 @@ def get_players_by_position_mysql(request):
                 for idx, p in enumerate(pitchers)
             ]
         
-        # 2. 타자 데이터 (kbo_hitters_top150 테이블 - 크롤링 데이터)
-        # 주의: 크롤링 데이터에는 포지션 정보가 없으므로 모든 포지션에 동일한 선수 표시
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT 순위, 선수명, 팀명, AVG, G, PA, AB, R, H, `2B`, `3B`, HR, TB, RBI, SAC, SF
-                FROM kbo_hitters_top150
-                ORDER BY TB DESC
-                LIMIT 100
-            """)
-            columns = [col[0] for col in cursor.description]
-            all_hitters = [dict(zip(columns, row)) for row in cursor.fetchall()]
-        
-        # 포지션별로 나누기 (임시: 순위 기반으로 포지션 할당)
-        # 실제로는 포지션 정보가 없으므로 대략적으로 분배
-        positions_to_fill = ['catcher', 'first', 'second', 'shortstop', 'third', 'left', 'center', 'right']
-        hitters_per_position = len(all_hitters) // len(positions_to_fill)
-        
-        for idx, frontend_position in enumerate(positions_to_fill):
-            start_idx = idx * hitters_per_position
-            end_idx = start_idx + hitters_per_position if idx < len(positions_to_fill) - 1 else len(all_hitters)
-            position_hitters = all_hitters[start_idx:end_idx]
+        # 2. 타자 데이터 (kbo_hitters_top150 + kbo_defense_positions INNER JOIN)
+        # SQL JOIN으로 포지션 정보와 merge - 포지션 정보가 있는 선수만 표시
+        for db_position, frontend_position in POSITION_MAPPING.items():
+            if db_position == 'P':
+                continue  # 투수는 이미 처리함
             
+            with connection.cursor() as cursor:
+                # INNER JOIN 사용: 포지션 정보가 있는 선수만 가져오기
+                # 영문 포지션(C, 1B 등)을 한글 포지션(포수, 1루수 등)으로 변환
+                position_kr = {v: k for k, v in POSITION_KR_TO_EN.items()}.get(db_position, '')
+                if not position_kr:
+                    continue  # 매핑되지 않은 포지션은 스킵
+                
+                # 포지션_영문 컬럼이 있는지 확인 후 쿼리 실행
+                cursor.execute("""
+                    SELECT 
+                        h.`순위`, 
+                        h.`선수명`, 
+                        h.`팀명`, 
+                        d.`포지션` AS `포지션_한글`,
+                        h.`AVG`, 
+                        h.`G`, 
+                        h.`PA`, 
+                        h.`AB`, 
+                        h.`R`, 
+                        h.`H`, 
+                        h.`2B`, 
+                        h.`3B`, 
+                        h.`HR`, 
+                        h.`TB`, 
+                        h.`RBI`, 
+                        h.`SAC`, 
+                        h.`SF`
+                    FROM `kbo_hitters_top150` h
+                    INNER JOIN `kbo_defense_positions` d 
+                        ON h.`선수명` = d.`선수명` 
+                        AND h.`팀명` = d.`팀명`
+                    WHERE d.`포지션` = %s
+                    ORDER BY h.`TB` DESC
+                """, [position_kr])
+                columns = [col[0] for col in cursor.description]
+                position_players = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            
+            # 프론트엔드 형식으로 변환
             result[frontend_position] = [
                 {
-                    'id': POSITION_ID_OFFSET[frontend_position] + i + 1,  # 포지션별 고유 ID
+                    'id': POSITION_ID_OFFSET[frontend_position] + idx + 1,
                     'name': p['선수명'],
                     'team': p['팀명'],
                     'position': frontend_position,
-                    'back_number': int(p['순위']) if p['순위'] else i + 1,  # 순위를 등번호로 사용
+                    'back_number': int(p['순위']) if p['순위'] else idx + 1,
                     'batting_average': float(p['AVG']) if p['AVG'] else 0,
                     'rbis': int(p['RBI']) if p['RBI'] else 0,
                     'home_runs': int(p['HR']) if p['HR'] else 0,
                     'stolen_bases': 0,  # 크롤링 데이터에 도루 정보 없음
                 }
-                for i, p in enumerate(position_hitters)
+                for idx, p in enumerate(position_players)
             ]
         
         return Response(result, status=status.HTTP_200_OK)
