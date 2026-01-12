@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django.db import connection
 from django.conf import settings
 import os
+import pymysql
 from .models import Player
 from .serializers import PlayerSerializer
 
@@ -222,46 +223,75 @@ def get_players_by_position_mysql(request):
 @api_view(['GET'])
 def get_player_images(request):
     """
-    선수 이미지 목록 가져오기
+    선수 이미지 목록 가져오기 (S3 URL 사용)
     GET /api/player-images/
     
     Returns:
     [
       {
         "id": "1",
-        "playerName": "네일",
-        "position": "pitcher",
-        "playerId": 1,
-        "imageUrl": "http://10.0.2.2:8000/media/네일_1.jpg",
-        "fileName": "네일_1.jpg"
+        "playerName": "류현진",
+        "playerId": 1001,
+        "imageUrl": "https://s3...amazonaws.com/players/류현진_1.jpg",
+        "fileName": "류현진_1.jpg",
+        "imageType": "1"
       },
       ...
     ]
     """
     try:
-        player_images_dir = settings.MEDIA_ROOT
+        # DB 설정 import
+        from config.db_config import DB_CONFIG
         
-        if not os.path.exists(player_images_dir):
-            return Response(
-                {'error': 'player_images 폴더가 없습니다.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        # photo_data 테이블에서 모든 이미지 URL 가져오기
+        conn = pymysql.connect(**DB_CONFIG)
+        cursor = conn.cursor()
         
-        # 모든 이미지 파일 찾기
-        image_files = []
-        for filename in os.listdir(player_images_dir):
-            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                # 파일명에서 선수 이름 추출 (예: "네일_1.jpg" -> "네일")
-                player_name = filename.split('_')[0]
+        try:
+            # 모든 선수의 이미지 정보 가져오기
+            cursor.execute("""
+                SELECT 
+                    player_id,
+                    player_name,
+                    image_1,
+                    image_2,
+                    image_3,
+                    profile_img
+                FROM photo_data
+                WHERE player_name IS NOT NULL
+            """)
+            
+            players = cursor.fetchall()
+            image_files = []
+            
+            # 각 선수의 이미지들을 개별 항목으로 변환
+            for player in players:
+                player_name = player.get('player_name')
+                player_id = player.get('player_id')
                 
-                image_files.append({
-                    'id': filename,
-                    'playerName': player_name,
-                    'fileName': filename,
-                    'imageUrl': f"{request.build_absolute_uri(settings.MEDIA_URL)}{filename}"
-                })
+                # 각 이미지 타입별로 URL이 있으면 추가
+                image_types = [
+                    ('1', player.get('image_1')),
+                    ('2', player.get('image_2')),
+                    ('3', player.get('image_3')),
+                    ('profile', player.get('profile_img'))
+                ]
+                
+                for image_type, image_url in image_types:
+                    if image_url:  # URL이 있으면 추가
+                        image_files.append({
+                            'id': f"{player_name}_{image_type}",
+                            'playerName': player_name,
+                            'playerId': player_id,
+                            'imageUrl': image_url,
+                            'fileName': f"{player_name}_{image_type}.jpg",
+                            'imageType': image_type
+                        })
+            
+            return Response(image_files, status=status.HTTP_200_OK)
         
-        return Response(image_files, status=status.HTTP_200_OK)
+        finally:
+            conn.close()
     
     except Exception as e:
         return Response(

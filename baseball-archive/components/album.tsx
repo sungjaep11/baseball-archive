@@ -39,32 +39,72 @@ export default function Album({ selectedPlayers }: AlbumProps) {
     const [hoveredId, setHoveredId] = useState<string | null>(null);
     const [filteredPlayerName, setFilteredPlayerName] = useState<string | null>(null);
 
-    // 이미지 목록 가져오기
+    // 선택된 선수가 변경될 때마다 이미지 목록 가져오기
     useEffect(() => {
-        fetchPlayerImages();
-    }, []);
+        const selectedPlayerNames = Object.values(selectedPlayers)
+            .filter(player => player !== undefined)
+            .map(player => player!.name);
+        
+        if (selectedPlayerNames.length > 0) {
+            fetchPlayerImages(selectedPlayerNames);
+        } else {
+            setAllImages([]);
+            setLoading(false);
+        }
+    }, [selectedPlayers]);
 
-    const fetchPlayerImages = async () => {
+    const fetchPlayerImages = async (playerNames: string[]) => {
         try {
-            const response = await fetch(`${API_URL}/api/player-images/`);
+            setLoading(true);
+            const namesParam = playerNames.map(name => `names=${encodeURIComponent(name)}`).join('&');
+            const url = `${API_URL}/api/player-images/?${namesParam}`;
+            
+            console.log('🔄 이미지 API 호출:', url);
+            console.log('👥 선택된 선수들:', playerNames);
+            
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                console.error('❌ API 응답 오류:', response.status, response.statusText);
+                const errorText = await response.text();
+                console.error('오류 내용:', errorText);
+                setAllImages([]);
+                return;
+            }
+            
             const data = await response.json();
+            console.log('✅ 이미지 데이터 받음:', data.length, '개');
+            if (data.length > 0) {
+                console.log('📋 첫 번째 이미지 샘플:', data[0]);
+            }
             setAllImages(data);
         } catch (error) {
-            console.error('이미지 로드 실패:', error);
+            console.error('❌ 이미지 로드 실패:', error);
+            setAllImages([]);
         } finally {
             setLoading(false);
         }
     };
 
-    // 선택된 선수의 이미지만 필터링
-    const filteredImages = allImages.filter(img => {
-        // 선택된 선수 목록 확인
-        const selectedPlayerNames = Object.values(selectedPlayers)
-            .filter(player => player !== undefined)
-            .map(player => player!.name);
+    // 이미지는 이미 선택된 선수만 DB에서 가져왔으므로, image_1, image_2, image_3만 필터링
+    const filteredImages = useMemo(() => {
+        console.log('📸 전체 이미지 개수:', allImages.length);
         
-        return selectedPlayerNames.includes(img.playerName);
-    });
+        // allImages가 배열이 아니면 빈 배열 반환
+        if (!Array.isArray(allImages)) {
+            return [];
+        }
+
+        // image_1, image_2, image_3만 포함 (profile_img 제외)
+        const filtered = allImages.filter(img => {
+            const isGalleryImage = img.imageType === '1' || img.imageType === '2' || img.imageType === '3';
+            return isGalleryImage;
+        });
+        
+        console.log('✅ 필터링된 이미지 개수 (갤러리 이미지만):', filtered.length);
+        
+        return filtered;
+    }, [allImages, selectedPlayers]);
 
     // 선수 카드 클릭 핸들러
     const handlePlayerChipClick = (playerName: string) => {
