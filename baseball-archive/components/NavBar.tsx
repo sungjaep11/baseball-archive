@@ -74,15 +74,15 @@ export default function NavBar({ onTabSelect, activeTab = null }: NavBarProps) {
 const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
-        height: 80,
+        height: 90,
         backgroundColor: '#F0F4F7', // Light gray-blue background to match audience theme
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         justifyContent: 'space-around',
         alignItems: 'center',
         paddingHorizontal: 10,
-        paddingBottom: 20,
-        paddingTop: 12,
+        paddingBottom: 24,
+        paddingTop: 14,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: -2 },
         shadowOpacity: 0.1,

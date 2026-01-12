@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-    StyleSheet,
-    View,
+    ActivityIndicator,
+    Dimensions,
     FlatList,
     Image,
-    Dimensions,
-    TouchableOpacity,
     Modal,
-    TouchableWithoutFeedback,
-    Text,
-    ActivityIndicator,
     ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from 'react-native';
-import { Player, PlayerPosition, POSITION_NAMES } from '../types/player';
 import { API_URL } from '../config/api';
+import { Player, PlayerPosition, POSITION_NAMES } from '../types/player';
 
 const { width, height } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
@@ -64,9 +64,34 @@ export default function Album({ selectedPlayers }: AlbumProps) {
     });
 
     // 표시할 이미지: 선택된 선수가 있을 때만 필터링, 없으면 빈 배열
-    const displayImages = Object.keys(selectedPlayers).length > 0 
-        ? filteredImages 
-        : [];
+    // 같은 선수의 이미지가 같은 행에 나타나도록 정렬
+    const displayImages = useMemo(() => {
+        if (Object.keys(selectedPlayers).length === 0) {
+            return [];
+        }
+        
+        // 선수별로 이미지 그룹화
+        const imagesByPlayer: Record<string, PlayerImage[]> = {};
+        filteredImages.forEach(img => {
+            if (!imagesByPlayer[img.playerName]) {
+                imagesByPlayer[img.playerName] = [];
+            }
+            imagesByPlayer[img.playerName].push(img);
+        });
+        
+        // 선수 이름으로 정렬하여 일관된 순서 유지
+        const sortedPlayerNames = Object.keys(imagesByPlayer).sort();
+        
+        // 각 선수의 이미지를 행 단위로 정렬 (COLUMN_COUNT개씩)
+        const sortedImages: PlayerImage[] = [];
+        sortedPlayerNames.forEach(playerName => {
+            const playerImages = imagesByPlayer[playerName];
+            // 선수의 이미지들을 그대로 추가 (같은 선수는 연속으로 배치)
+            sortedImages.push(...playerImages);
+        });
+        
+        return sortedImages;
+    }, [filteredImages, selectedPlayers]);
 
     const renderItem = ({ item }: { item: PlayerImage }) => {
         const isHovered = hoveredId === item.id;
@@ -104,7 +129,7 @@ export default function Album({ selectedPlayers }: AlbumProps) {
     if (loading) {
         return (
             <View style={[styles.container, styles.centerContent]}>
-                <ActivityIndicator size="large" color="#5d4037" />
+                <ActivityIndicator size="large" color="#7896AA" />
                 <Text style={styles.loadingText}>이미지 로딩 중...</Text>
             </View>
         );
@@ -112,18 +137,9 @@ export default function Album({ selectedPlayers }: AlbumProps) {
 
     return (
         <View style={styles.container}>
-            {/* 선택된 선수 리스트 헤더 */}
+            {/* 선택된 선수 리스트 */}
             {Object.keys(selectedPlayers).length > 0 && (
                 <View style={styles.selectedPlayersHeader}>
-                    <View style={styles.headerTitleContainer}>
-                        <Text style={styles.headerTitle}>⚾ 선택된 선수</Text>
-                        <View style={styles.countBadge}>
-                            <Text style={styles.countText}>
-                                {Object.keys(selectedPlayers).length}
-                            </Text>
-                        </View>
-                    </View>
-                    
                     <ScrollView 
                         horizontal 
                         showsHorizontalScrollIndicator={false}
@@ -237,11 +253,11 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 10,
         fontSize: 14,
-        color: '#666',
+        color: '#757575',
     },
     emptyText: {
         fontSize: 16,
-        color: '#999',
+        color: '#757575',
         textAlign: 'center',
     },
     listContent: {
@@ -257,7 +273,7 @@ const styles = StyleSheet.create({
     image: {
         width: '100%',
         height: '100%',
-        backgroundColor: '#e0e0e0',
+        backgroundColor: '#E0E0E0',
     },
     imageHovered: {
         opacity: 0.3,  // 이미지 반투명하게
@@ -314,35 +330,11 @@ const styles = StyleSheet.create({
     },
     // 선택된 선수 헤더 스타일
     selectedPlayersHeader: {
-        backgroundColor: '#4e342e',
-        paddingVertical: 16,
+        backgroundColor: '#F0F4F7',
+        paddingVertical: 12,
         paddingHorizontal: 20,
-        borderBottomWidth: 2,
-        borderBottomColor: '#3e2723',
-    },
-    headerTitleContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#ffffff',
-        marginRight: 10,
-    },
-    countBadge: {
-        backgroundColor: '#ff6f00',
-        borderRadius: 12,
-        width: 24,
-        height: 24,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    countText: {
-        color: '#ffffff',
-        fontSize: 14,
-        fontWeight: 'bold',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(100, 130, 150, 0.2)',
     },
     playerChipsContainer: {
         flexGrow: 0,
@@ -351,7 +343,7 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
     },
     playerChip: {
-        backgroundColor: '#6d4c41',
+        backgroundColor: '#F0F4F7',
         borderRadius: 12,
         marginRight: 12,
         paddingVertical: 10,
@@ -361,11 +353,11 @@ const styles = StyleSheet.create({
             width: 0,
             height: 2,
         },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
-        borderWidth: 2,
-        borderColor: '#8d6e63',
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
     },
     chipContent: {
         alignItems: 'center',
@@ -373,18 +365,18 @@ const styles = StyleSheet.create({
     chipPosition: {
         fontSize: 12,
         fontWeight: '600',
-        color: '#ffcc80',
+        color: '#7896AA',
         marginBottom: 4,
     },
     chipName: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#ffffff',
+        color: '#3D5566',
         marginBottom: 2,
     },
     chipNumber: {
         fontSize: 12,
-        color: '#e0e0e0',
+        color: '#757575',
     },
     // 빈 상태 안내 메시지 스타일
     emptyStateContainer: {
@@ -395,20 +387,20 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     emptyStateCard: {
-        backgroundColor: '#6d4c41',
+        backgroundColor: '#FFFFFF',
         borderRadius: 20,
         padding: 40,
         alignItems: 'center',
         shadowColor: '#000',
         shadowOffset: {
             width: 0,
-            height: 4,
+            height: 2,
         },
-        shadowOpacity: 0.3,
-        shadowRadius: 6,
-        elevation: 8,
-        borderWidth: 3,
-        borderColor: '#8d6e63',
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
         maxWidth: 400,
     },
     emptyStateIcon: {
@@ -418,13 +410,13 @@ const styles = StyleSheet.create({
     emptyStateTitle: {
         fontSize: 22,
         fontWeight: 'bold',
-        color: '#ffffff',
+        color: '#3D5566',
         textAlign: 'center',
         marginBottom: 12,
     },
     emptyStateSubtitle: {
         fontSize: 16,
-        color: '#e0e0e0',
+        color: '#757575',
         textAlign: 'center',
         lineHeight: 24,
         marginBottom: 24,
@@ -432,10 +424,12 @@ const styles = StyleSheet.create({
     emptyStateIconRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#5d4037',
+        backgroundColor: '#F0F4F7',
         paddingVertical: 12,
         paddingHorizontal: 20,
         borderRadius: 25,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
     },
     emptyStateSmallIcon: {
         fontSize: 24,
@@ -444,6 +438,6 @@ const styles = StyleSheet.create({
     emptyStateHint: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#ffcc80',
+        color: '#7896AA',
     },
 });

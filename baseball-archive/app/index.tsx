@@ -138,7 +138,7 @@ export default function BaseballField() {
                 {/* Player Icons Layer */}
                 <View style={styles.playersLayer}>
                     <View style={[styles.playerContainer, styles.pitcher]}>
-                        {selectedPlayers['pitcher'] && <View style={styles.nameTag}><Text style={styles.nameText}>{selectedPlayers['pitcher'].name} #{selectedPlayers['pitcher'].back_number}</Text></View>}
+                        {selectedPlayers['pitcher'] && <View style={styles.nameTag}><Text style={styles.nameText}>{selectedPlayers['pitcher'].name}</Text></View>}
                         <Image source={getPlayerIcon('pitcher')} style={styles.playerIcon} />
                     </View>
                     <View style={[styles.playerContainer, styles.catcher]}>
@@ -182,17 +182,28 @@ export default function BaseballField() {
                     <View style={styles.panelHandle} />
                 </View>
                 <View style={styles.panelBody}>
-                    <Text style={styles.panelTitle}>
-                        {activeTab === 'album' ? '앨범' : 
-                         activeTab === 'roster' ? '선수 선택' : 
-                         activeTab === 'stats' ? '통계' : ''}
-                    </Text>
+                    <View style={styles.panelTitleContainer}>
+                        <Text style={styles.panelTitle}>
+                            {activeTab === 'album' ? '앨범' : 
+                             activeTab === 'roster' ? '선수 선택' : 
+                             activeTab === 'stats' ? '통계' : ''}
+                        </Text>
+                        {activeTab === 'album' && Object.keys(selectedPlayers).length > 0 && (
+                            <View style={styles.countBadge}>
+                                <Text style={styles.countText}>
+                                    {Object.keys(selectedPlayers).length}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
                     {renderPanelContent()}
                 </View>
             </Animated.View>
 
             {/* --- 3. Navigation Bar --- */}
-            <NavBar onTabSelect={handleTabSelect} activeTab={activeTab} />
+            <View style={styles.navBarWrapper}>
+                <NavBar onTabSelect={handleTabSelect} activeTab={activeTab} />
+            </View>
         </SafeAreaView>
     );
 }
@@ -229,7 +240,7 @@ const styles = StyleSheet.create({
 
     // --- Panel Styles ---
     slidingPanel: {
-        position: 'absolute', bottom: 80, width: width, height: PANEL_HEIGHT,
+        position: 'absolute', bottom: 90, width: width, height: PANEL_HEIGHT,
         backgroundColor: '#F0F4F7', borderTopLeftRadius: 30, borderTopRightRadius: 30,
         zIndex: 10, shadowColor: "#000", shadowOffset: { width: 0, height: -3 },
         shadowOpacity: 0.1, shadowRadius: 5, elevation: 15, paddingBottom: 0,
@@ -237,8 +248,12 @@ const styles = StyleSheet.create({
     panelHeader: { width: '100%', height: 50, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(100, 130, 150, 0.3)' },
     panelHandle: { width: 50, height: 6, borderRadius: 3, backgroundColor: '#7896AA' },
     panelBody: { flex: 1, paddingTop: 20 },
-    panelTitle: { fontSize: 22, fontWeight: 'bold', color: '#3D5566', marginBottom: 20, paddingHorizontal: 20 },
+    panelTitleContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, paddingHorizontal: 20 },
+    panelTitle: { fontSize: 22, fontWeight: 'bold', color: '#3D5566', marginRight: 10 },
+    countBadge: { backgroundColor: '#7896AA', borderRadius: 12, width: 24, height: 24, justifyContent: 'center', alignItems: 'center' },
+    countText: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' },
     panelText: { fontSize: 16, color: '#424242' },
+    navBarWrapper: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'transparent', zIndex: 20 },
     
     playersLayer: { width: '100%', height: '100%', position: 'absolute', zIndex: 20 },
     playerContainer: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },

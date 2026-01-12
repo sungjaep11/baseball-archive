@@ -1,15 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  SafeAreaView,
   ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { Player, PlayerPosition, POSITION_NAMES } from '../types/player';
 import { getMysqlPlayersByPosition } from '../services/playerService'; // MySQL API 사용
+import { Player, PlayerPosition, POSITION_NAMES } from '../types/player';
 
 interface PlayerSelectorProps {
   selectedPlayers: Partial<Record<PlayerPosition, Player>>;
@@ -96,7 +95,7 @@ export default function PlayerSelector({ selectedPlayers, onPlayerSelect }: Play
   if (loading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#ffcc80" />
+        <ActivityIndicator size="large" color="#7896AA" />
         <Text style={styles.loadingText}>선수 데이터를 불러오는 중...</Text>
       </View>
     );
@@ -113,9 +112,9 @@ export default function PlayerSelector({ selectedPlayers, onPlayerSelect }: Play
             setLoading(true);
             setError(null);
             // 재시도
-            getAllPlayersByPosition()
-              .then(data => setPlayersData(data))
-              .catch(err => setError('선수 데이터를 불러오는데 실패했습니다.'))
+            getMysqlPlayersByPosition()
+              .then((data: Record<PlayerPosition, Player[]>) => setPlayersData(data))
+              .catch((err: Error) => setError('선수 데이터를 불러오는데 실패했습니다.'))
               .finally(() => setLoading(false));
           }}
         >
@@ -176,14 +175,9 @@ export default function PlayerSelector({ selectedPlayers, onPlayerSelect }: Play
                 {/* 선택된 선수 정보 표시 */}
                 <View style={styles.selectedPlayerInfo}>
                   {selectedPlayer ? (
-                    <>
-                      <Text style={styles.selectedPlayerName}>
-                        {selectedPlayer.name}
-                      </Text>
-                      <Text style={styles.selectedPlayerDetail}>
-                        #{selectedPlayer.back_number}
-                      </Text>
-                    </>
+                    <Text style={styles.selectedPlayerName}>
+                      {selectedPlayer.name}
+                    </Text>
                   ) : (
                     <Text style={styles.noSelection}>선택 안됨</Text>
                   )}
@@ -215,7 +209,6 @@ export default function PlayerSelector({ selectedPlayers, onPlayerSelect }: Play
                       <View style={styles.playerInfo}>
                         <View style={styles.playerHeader}>
                           <Text style={styles.playerName}>{player.name}</Text>
-                          <Text style={styles.backNumber}>#{player.back_number}</Text>
                         </View>
                         <Text style={styles.teamName}>{player.team}</Text>
                       </View>
@@ -252,7 +245,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#ffffff',
+    color: '#3D5566',
   },
   errorText: {
     fontSize: 16,
@@ -262,7 +255,7 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     marginTop: 20,
-    backgroundColor: '#ffcc80',
+    backgroundColor: '#7896AA',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
@@ -270,7 +263,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#5d4037',
+    color: '#FFFFFF',
   },
   scrollView: {
     flex: 1,
@@ -286,13 +279,13 @@ const styles = StyleSheet.create({
     marginBottom: 1,
   },
   positionHeader: {
-    backgroundColor: '#6d4c41',
+    backgroundColor: '#FFFFFF',
     padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#5d4037',
+    borderBottomColor: 'rgba(100, 130, 150, 0.2)',
     minHeight: 60,
     borderRadius: 12,
     marginHorizontal: 12,
@@ -300,15 +293,15 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 2,
     },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   positionHeaderExpanded: {
-    backgroundColor: '#8d6e63',
-    borderBottomColor: '#a1887f',
+    backgroundColor: '#F0F4F7',
+    borderBottomColor: 'rgba(100, 130, 150, 0.3)',
     borderBottomWidth: 2,
   },
   positionHeaderLeft: {
@@ -318,14 +311,14 @@ const styles = StyleSheet.create({
   },
   positionIcon: {
     fontSize: 14,
-    color: '#ffcc80',
+    color: '#7896AA',
     marginRight: 12,
     width: 20,
   },
   positionName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#3D5566',
     minWidth: 60,
   },
   selectedPlayerInfo: {
@@ -338,28 +331,28 @@ const styles = StyleSheet.create({
   selectedPlayerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffcc80',
+    color: '#7896AA',
     marginRight: 6,
   },
   selectedPlayerDetail: {
     fontSize: 14,
-    color: '#ffffff',
-    backgroundColor: '#8d6e63',
+    color: '#FFFFFF',
+    backgroundColor: '#7896AA',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
   },
   noSelection: {
     fontSize: 14,
-    color: '#a1887f',
+    color: '#757575',
     fontStyle: 'italic',
   },
   playerListContainer: {
-    backgroundColor: '#4e342e',
+    backgroundColor: '#F0F4F7',
     paddingVertical: 8,
   },
   playerCard: {
-    backgroundColor: '#6d4c41',
+    backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
     marginVertical: 6,
     padding: 12,
@@ -369,16 +362,16 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 2,
     },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   selectedCard: {
     borderWidth: 2,
-    borderColor: '#ffcc80',
-    backgroundColor: '#8d6e63',
+    borderColor: '#7896AA',
+    backgroundColor: '#F0F4F7',
   },
   checkboxContainer: {
     marginRight: 12,
@@ -388,17 +381,17 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#a1887f',
+    borderColor: '#E0E0E0',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
   checkboxSelected: {
-    backgroundColor: '#ffcc80',
-    borderColor: '#ffcc80',
+    backgroundColor: '#7896AA',
+    borderColor: '#7896AA',
   },
   checkmark: {
-    color: '#5d4037',
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -413,16 +406,16 @@ const styles = StyleSheet.create({
   playerName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#3D5566',
     marginRight: 8,
   },
   backNumber: {
     fontSize: 14,
-    color: '#ffcc80',
+    color: '#7896AA',
     fontWeight: '600',
   },
   teamName: {
     fontSize: 13,
-    color: '#efebe9',
+    color: '#757575',
   },
 });

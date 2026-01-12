@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Svg, { Circle, G, Path, Text as SvgText } from 'react-native-svg';
+import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
 import { Player, PlayerPosition } from '../types/player';
 
 const { width } = Dimensions.get('window');
@@ -30,9 +30,6 @@ interface TeamStats {
   holds: number; // 홀드
   strikeouts: number; // 탈삼진
   
-  // 좌/우타자 비율
-  leftHanded: number;
-  rightHanded: number;
 }
 
 interface TeamAbilities {
@@ -70,8 +67,6 @@ export default function Stats({ selectedPlayers }: StatsProps) {
       saves: 0,
       holds: 0,
       strikeouts: 0,
-      leftHanded: 0,
-      rightHanded: 0,
     };
 
     if (batters.length > 0) {
@@ -103,11 +98,6 @@ export default function Stats({ selectedPlayers }: StatsProps) {
       stats.holds = totalHolds / pitchers.length;
       stats.strikeouts = totalK / pitchers.length;
     }
-
-    // 좌/우타자 비율 (임시로 50:50으로 설정, 실제 데이터가 있으면 업데이트)
-    // 실제 구현 시 Player 타입에 batting_hand 필드 추가 필요
-    stats.leftHanded = batters.length > 0 ? batters.length / 2 : 0;
-    stats.rightHanded = batters.length > 0 ? batters.length / 2 : 0;
 
     return stats;
   }, [batters, pitchers]);
@@ -196,57 +186,6 @@ export default function Stats({ selectedPlayers }: StatsProps) {
       return '리빌딩이 시급합니다...';
     }
   }, [expectedWinRate]);
-
-  // 파이차트 컴포넌트 (좌/우타자 밸런스)
-  const PieChart = ({ left, right, size = 120 }: { left: number; right: number; size?: number }) => {
-    const total = left + right;
-    if (total === 0) return null;
-
-    const radius = size / 2 - 10;
-    const center = size / 2;
-    const leftPercent = left / total;
-    const rightPercent = right / total;
-
-    // 좌타자 각도 계산
-    const leftAngle = leftPercent * 360;
-    const rightAngle = rightPercent * 360;
-
-    // SVG Path 생성 (좌타자)
-    const createArc = (startAngle: number, endAngle: number) => {
-      const start = (startAngle - 90) * (Math.PI / 180);
-      const end = (endAngle - 90) * (Math.PI / 180);
-      const x1 = center + radius * Math.cos(start);
-      const y1 = center + radius * Math.sin(start);
-      const x2 = center + radius * Math.cos(end);
-      const y2 = center + radius * Math.sin(end);
-      const largeArc = endAngle - startAngle > 180 ? 1 : 0;
-      return `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
-    };
-
-    return (
-      <View style={styles.chartContainer}>
-        <Svg width={size} height={size}>
-          <Circle cx={center} cy={center} r={radius} fill="#FFE082" />
-          {leftPercent > 0 && (
-            <Path
-              d={createArc(0, leftAngle)}
-              fill="#FF6B6B"
-            />
-          )}
-        </Svg>
-        <View style={styles.chartLegend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#FF6B6B' }]} />
-            <Text style={styles.legendText}>좌타 {Math.round(leftPercent * 100)}%</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#FFE082' }]} />
-            <Text style={styles.legendText}>우타 {Math.round(rightPercent * 100)}%</Text>
-          </View>
-        </View>
-      </View>
-    );
-  };
 
   // 오각형 그래프 컴포넌트
   const PentagonChart = ({ abilities, size = 200 }: { abilities: TeamAbilities; size?: number }) => {
@@ -406,14 +345,6 @@ export default function Stats({ selectedPlayers }: StatsProps) {
               <Text style={styles.statValue}>{teamStats.strikeouts.toFixed(1)}</Text>
             </View>
           </View>
-        </View>
-      )}
-
-      {/* 좌/우타자 밸런스 */}
-      {batters.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>좌/우타자 밸런스</Text>
-          <PieChart left={teamStats.leftHanded} right={teamStats.rightHanded} />
         </View>
       )}
 
