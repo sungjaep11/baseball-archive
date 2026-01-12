@@ -238,3 +238,8 @@ app-example/
 # test-*.tsx
 # *.test.ts
 # *.spec.ts
+
+
+# Data
+player_images/
+data/

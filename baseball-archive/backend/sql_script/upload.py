@@ -39,7 +39,10 @@ try:
     print("✅ 데이터베이스 연결 성공!")
     print("=" * 60)
 
-    # (2) 현재 폴더에서 모든 .xlsx, .xls, .csv 파일 찾기
+    # (2) backend/data 폴더에서 모든 .xlsx, .xls, .csv 파일 찾기
+    data_dir = os.path.join(os.path.dirname(__file__), '..', 'data')
+    os.chdir(data_dir)  # data 폴더로 이동
+    
     excel_files = glob.glob('*.xlsx') + glob.glob('*.xls')
     csv_files = glob.glob('*.csv')
     all_files = excel_files + csv_files

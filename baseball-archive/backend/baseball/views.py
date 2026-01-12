@@ -49,7 +49,8 @@ class PlayerViewSet(viewsets.ModelViewSet):
 
 
 # ==========================================
-# MySQL 테이블 직접 쿼리 (batterlist, pitcherlist)
+# MySQL 테이블 직접 쿼리 (kbo_hitters_top150, kbo_pitchers_top150)
+# KBO 공식 사이트 크롤링 데이터 (2024 시즌)
 # ==========================================
 
 # 포지션 매핑: DB 포지션 → 프론트엔드 포지션 키
@@ -109,12 +110,13 @@ def get_players_by_position_mysql(request):
     try:
         result = {}
         
-        # 1. 투수 데이터 (pitcherlist 테이블)
+        # 1. 투수 데이터 (kbo_pitchers_top150 테이블 - 크롤링 데이터)
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT 시즌, 팀, 포지션, 이름, ERA, 승, 패, 홀드, 세이브, 탈삼진
-                FROM pitcherlist
-                WHERE 포지션 = 'P'
+                SELECT 순위, 선수명, 팀명, ERA, G, W, L, SV, HLD, WPCT, IP, H, HR, BB, HBP, SO, R, ER, WHIP
+                FROM kbo_pitchers_top150
+                ORDER BY G DESC
+                LIMIT 100
             """)
             columns = [col[0] for col in cursor.description]
             pitchers = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -123,49 +125,55 @@ def get_players_by_position_mysql(request):
             result['pitcher'] = [
                 {
                     'id': POSITION_ID_OFFSET['pitcher'] + idx + 1,  # 1001, 1002, 1003...
-                    'name': p['이름'],
-                    'team': p['팀'],
+                    'name': p['선수명'],
+                    'team': p['팀명'],
                     'position': 'pitcher',
-                    'back_number': idx + 1,  # 등번호가 없으면 임시로 ID 사용
-                    'era': p['ERA'],
-                    'wins': p['승'],
-                    'losses': p['패'],
-                    'holds': p['홀드'],
-                    'saves': p['세이브'],
-                    'strikeouts': p['탈삼진'],
+                    'back_number': int(p['순위']) if p['순위'] else idx + 1,  # 순위를 등번호로 사용
+                    'era': float(p['ERA']) if p['ERA'] else 0,
+                    'wins': int(p['W']) if p['W'] else 0,
+                    'losses': int(p['L']) if p['L'] else 0,
+                    'holds': int(p['HLD']) if p['HLD'] else 0,
+                    'saves': int(p['SV']) if p['SV'] else 0,
+                    'strikeouts': int(p['SO']) if p['SO'] else 0,
                 }
                 for idx, p in enumerate(pitchers)
             ]
         
-        # 2. 타자 데이터 (batterlist 테이블)
+        # 2. 타자 데이터 (kbo_hitters_top150 테이블 - 크롤링 데이터)
+        # 주의: 크롤링 데이터에는 포지션 정보가 없으므로 모든 포지션에 동일한 선수 표시
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT 시즌, 팀, 포지션, 이름, 타율, 타점, 홈런, 도루
-                FROM batterlist
+                SELECT 순위, 선수명, 팀명, AVG, G, PA, AB, R, H, `2B`, `3B`, HR, TB, RBI, SAC, SF
+                FROM kbo_hitters_top150
+                ORDER BY TB DESC
+                LIMIT 100
             """)
             columns = [col[0] for col in cursor.description]
-            batters = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            all_hitters = [dict(zip(columns, row)) for row in cursor.fetchall()]
         
-        # 포지션별로 그룹화
-        for db_position, frontend_position in POSITION_MAPPING.items():
-            if db_position == 'P':
-                continue  # 투수는 이미 처리함
-            
-            position_players = [b for b in batters if b['포지션'] == db_position]
+        # 포지션별로 나누기 (임시: 순위 기반으로 포지션 할당)
+        # 실제로는 포지션 정보가 없으므로 대략적으로 분배
+        positions_to_fill = ['catcher', 'first', 'second', 'shortstop', 'third', 'left', 'center', 'right']
+        hitters_per_position = len(all_hitters) // len(positions_to_fill)
+        
+        for idx, frontend_position in enumerate(positions_to_fill):
+            start_idx = idx * hitters_per_position
+            end_idx = start_idx + hitters_per_position if idx < len(positions_to_fill) - 1 else len(all_hitters)
+            position_hitters = all_hitters[start_idx:end_idx]
             
             result[frontend_position] = [
                 {
-                    'id': POSITION_ID_OFFSET[frontend_position] + idx + 1,  # 포지션별 고유 ID
-                    'name': p['이름'],
-                    'team': p['팀'],
+                    'id': POSITION_ID_OFFSET[frontend_position] + i + 1,  # 포지션별 고유 ID
+                    'name': p['선수명'],
+                    'team': p['팀명'],
                     'position': frontend_position,
-                    'back_number': idx + 1,  # 등번호가 없으면 임시로 ID 사용
-                    'batting_average': float(p['타율']) if p['타율'] else 0,
-                    'rbis': p['타점'],
-                    'home_runs': p['홈런'],
-                    'stolen_bases': p['도루'],
+                    'back_number': int(p['순위']) if p['순위'] else i + 1,  # 순위를 등번호로 사용
+                    'batting_average': float(p['AVG']) if p['AVG'] else 0,
+                    'rbis': int(p['RBI']) if p['RBI'] else 0,
+                    'home_runs': int(p['HR']) if p['HR'] else 0,
+                    'stolen_bases': 0,  # 크롤링 데이터에 도루 정보 없음
                 }
-                for idx, p in enumerate(position_players)
+                for i, p in enumerate(position_hitters)
             ]
         
         return Response(result, status=status.HTTP_200_OK)
