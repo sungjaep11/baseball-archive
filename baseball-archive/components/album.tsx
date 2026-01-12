@@ -56,6 +56,7 @@ export default function Album({ selectedPlayers }: AlbumProps) {
     const fetchPlayerImages = async (playerNames: string[]) => {
         try {
             setLoading(true);
+            // 선택된 선수 이름들을 쿼리 파라미터로 전달
             const namesParam = playerNames.map(name => `names=${encodeURIComponent(name)}`).join('&');
             const url = `${API_URL}/api/player-images/?${namesParam}`;
             
@@ -86,12 +87,23 @@ export default function Album({ selectedPlayers }: AlbumProps) {
         }
     };
 
+<<<<<<< HEAD
     // 이미지는 이미 선택된 선수만 DB에서 가져왔으므로, image_1, image_2, image_3만 필터링
     const filteredImages = useMemo(() => {
         console.log('📸 전체 이미지 개수:', allImages.length);
         
         // allImages가 배열이 아니면 빈 배열 반환
         if (!Array.isArray(allImages)) {
+            return [];
+        }
+
+    // 이미지는 이미 선택된 선수만 DB에서 가져왔으므로, image_1, image_2, image_3만 필터링
+    const filteredImages = useMemo(() => {
+        console.log('📸 전체 이미지 개수:', allImages.length);
+        
+        // allImages가 배열이 아니면 빈 배열 반환
+        if (!Array.isArray(allImages)) {
+            console.log('⚠️ allImages가 배열이 아닙니다:', typeof allImages, allImages);
             return [];
         }
 
@@ -102,6 +114,9 @@ export default function Album({ selectedPlayers }: AlbumProps) {
         });
         
         console.log('✅ 필터링된 이미지 개수 (갤러리 이미지만):', filtered.length);
+        if (filtered.length > 0) {
+            console.log('📋 첫 번째 필터링된 이미지:', filtered[0]);
+        }
         
         return filtered;
     }, [allImages, selectedPlayers]);

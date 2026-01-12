@@ -243,13 +243,23 @@ def get_player_images(request):
         # DB 설정 import
         from config.db_config import DB_CONFIG
         
-        # photo_data 테이블에서 모든 이미지 URL 가져오기
+        # 쿼리 파라미터에서 선수 이름 목록 가져오기
+        player_names = request.query_params.getlist('names')
+        
+        if not player_names:
+            # 선수 이름이 없으면 빈 배열 반환
+            return Response([], status=status.HTTP_200_OK)
+        
+        print(f"🔍 요청된 선수들: {player_names}")
+        
+        # photo_data 테이블에서 선택된 선수들의 이미지 URL만 가져오기
         conn = pymysql.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
         try:
-            # 모든 선수의 이미지 정보 가져오기
-            cursor.execute("""
+            # 선택된 선수들의 이미지 정보만 가져오기
+            placeholders = ','.join(['%s'] * len(player_names))
+            cursor.execute(f"""
                 SELECT 
                     player_id,
                     player_name,
@@ -258,8 +268,8 @@ def get_player_images(request):
                     image_3,
                     profile_img
                 FROM photo_data
-                WHERE player_name IS NOT NULL
-            """)
+                WHERE player_name IN ({placeholders})
+            """, player_names)
             
             players = cursor.fetchall()
             image_files = []
