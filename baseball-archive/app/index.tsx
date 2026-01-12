@@ -14,6 +14,7 @@ import {
 import Album from '../components/album';
 import NavBar from '../components/NavBar';
 import PlayerSelector from '../components/player-selector';
+import Stats from '../components/stats';
 import { Player, PlayerPosition } from '../types/player';
 
 const { width, height } = Dimensions.get('window');
@@ -97,7 +98,7 @@ export default function BaseballField() {
         switch (activeTab) {
             case 'album': return <Album />;
             case 'roster': return <PlayerSelector selectedPlayers={selectedPlayers} onPlayerSelect={handlePlayerSelect} />;
-            case 'stats': return <Text style={styles.panelText}>📊 통계 (Stats Placeholder)</Text>;
+            case 'stats': return <Stats selectedPlayers={selectedPlayers} />;
             default: return null;
         }
     };
