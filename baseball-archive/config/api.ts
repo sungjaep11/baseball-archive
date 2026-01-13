@@ -10,14 +10,16 @@ const getApiUrl = () => {
   if (__DEV__) {
     // 개발 환경
     if (Platform.OS === 'android') {
-      // Android 에뮬레이터는 10.0.2.2를 사용
-      return 'http://10.0.2.2:8000';
+      // 물리적 Android 기기: 컴퓨터의 로컬 IP 주소 사용
+      // Android 에뮬레이터를 사용하는 경우 10.0.2.2로 변경
+      return 'http://10.249.17.55:8000';
     } else if (Platform.OS === 'ios') {
       // iOS 시뮬레이터는 localhost 사용 가능
+      // 물리적 iOS 기기: 컴퓨터의 로컬 IP 주소 사용 (필요시 변경)
       return 'http://localhost:8000';
     }
-    // 실제 기기에서 테스트하는 경우 (컴퓨터 IP로 변경 필요)
-    return 'http://192.168.0.10:8000';
+    // 기본값
+    return 'http://10.249.17.55:8000';
   }
   
   // 프로덕션 환경 (실제 배포 시)
