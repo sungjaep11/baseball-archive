@@ -169,9 +169,9 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
     const defense = (abilities.defense + abilities.pitching) / 2;
     const totalAbility = (offense * 0.5 + defense * 0.5) / 100;
 
-    // 0.4 ~ 0.6 범위로 정규화 (최소 0.4, 최대 0.6)
-    const winRate = 0.4 + (totalAbility * 0.2);
-    return Math.max(0.3, Math.min(0.7, winRate));
+    // 0.35 ~ 0.65 범위로 정규화 (더 완화된 범위)
+    const winRate = 0.35 + (totalAbility * 0.30);
+    return Math.max(0.25, Math.min(0.75, winRate));
   }, [teamAbilities]);
 
   // 팀 성향 분석
@@ -211,6 +211,8 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
       return '가을야구 진출이 유력합니다.';
     } else if (expectedWinRate >= 0.400) {
       return '중위권 싸움이 치열하겠네요.';
+    } else if (expectedWinRate >= 0.300) {
+      return '하위권 탈출을 노려야 합니다.';
     } else {
       return '리빌딩이 시급합니다...';
     }
@@ -224,6 +226,8 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
       return '#E3F2FD'; // 파란색 계열 (양호)
     } else if (expectedWinRate >= 0.400) {
       return '#FFF9C4'; // 노란색 계열 (보통)
+    } else if (expectedWinRate >= 0.300) {
+      return '#FFE0B2'; // 주황색 계열 (주의)
     } else {
       return '#FFEBEE'; // 빨간색 계열 (나쁨)
     }
@@ -231,29 +235,24 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
 
   // 예상 순위 계산 (KBO는 10개 팀)
   const expectedRank = useMemo(() => {
-    // 예상 승률을 기준으로 순위 계산
+    // 예상 승률을 기준으로 순위 계산 (더 완화된 구간)
     // 승률이 높을수록 순위가 높음 (1위가 최고)
-    // 예상 승률 0.7 -> 1위
-    // 예상 승률 0.6 -> 2-3위
-    // 예상 승률 0.5 -> 5-6위
-    // 예상 승률 0.4 -> 8-9위
-    // 예상 승률 0.3 -> 10위
     
-    if (expectedWinRate >= 0.650) {
+    if (expectedWinRate >= 0.600) {
       return 1;
-    } else if (expectedWinRate >= 0.600) {
-      return 2;
     } else if (expectedWinRate >= 0.550) {
-      return 3;
-    } else if (expectedWinRate >= 0.525) {
-      return 4;
+      return 2;
     } else if (expectedWinRate >= 0.500) {
-      return 5;
+      return 3;
     } else if (expectedWinRate >= 0.475) {
-      return 6;
+      return 4;
     } else if (expectedWinRate >= 0.450) {
-      return 7;
+      return 5;
+    } else if (expectedWinRate >= 0.425) {
+      return 6;
     } else if (expectedWinRate >= 0.400) {
+      return 7;
+    } else if (expectedWinRate >= 0.375) {
       return 8;
     } else if (expectedWinRate >= 0.350) {
       return 9;
