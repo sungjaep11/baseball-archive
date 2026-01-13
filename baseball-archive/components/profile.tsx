@@ -168,11 +168,14 @@ export default function Profile({ player, visible, onClose }: ProfileProps) {
     // 투수 통계 기반 능력치 계산
     if (player.era !== undefined) {
       // 제구: BB*9/IP 기준 (볼넷/9이닝, 낮을수록 좋음)
-      // BB*9/IP 범위: 0-6을 역으로 100-0으로 변환
+      // BB*9/IP 범위: 0-12를 역으로 100-0으로 변환 (더 완화된 기준)
+      // 최고 수준 투수(1.0 이하)는 거의 만점에 가까운 점수
       const bbPer9 = (player.innings_pitched && player.innings_pitched > 0 && player.walks !== undefined)
         ? (player.walks * 9) / player.innings_pitched
         : 3.0; // 기본값 (평균 수준)
-      const control = Math.max(0, Math.min(100, ((6.0 - bbPer9) / 6.0) * 100));
+      // 더 완만한 곡선: 제곱근을 사용하여 최고 구간을 더 넓게
+      const normalized = Math.max(0, Math.min(1, (12.0 - bbPer9) / 12.0));
+      const control = Math.max(0, Math.min(100, Math.pow(normalized, 0.7) * 100));
 
       // 탈삼진 능력: 탈삼진 기준 (0-200개를 0-100으로 변환)
       const strikeoutAbility = Math.min(100, ((player.strikeouts || 0) / 200) * 100);
