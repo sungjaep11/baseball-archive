@@ -584,26 +584,19 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
       {hasData && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>예상 성적</Text>
-          <View style={styles.predictionGrid}>
+          <View style={styles.predictionRow}>
             <BlurView intensity={80} tint="light" style={[styles.predictionCard, { backgroundColor: winRateBackgroundColor }]}>
               <Text style={styles.predictionLabel}>예상 승률</Text>
               <Text style={styles.predictionValue}>{(expectedWinRate * 100).toFixed(1)}%</Text>
-              <Text style={styles.predictionMessage}>{winRateMessage}</Text>
             </BlurView>
-            <BlurView intensity={80} tint="light" style={styles.predictionCard}>
+            <BlurView intensity={80} tint="light" style={[styles.predictionCard, { backgroundColor: winRateBackgroundColor }]}>
               <Text style={styles.predictionLabel}>예상 순위</Text>
               <Text style={styles.predictionValue}>{expectedRank}위</Text>
-              <Text style={styles.predictionMessage}>
-                {expectedRank <= 3 
-                  ? '상위권 진입이 유력합니다!' 
-                  : expectedRank <= 5 
-                  ? '중위권 경쟁이 치열하겠네요.'
-                  : expectedRank <= 7
-                  ? '하위권 탈출을 노려야 합니다.'
-                  : '리빌딩이 시급합니다...'}
-              </Text>
             </BlurView>
           </View>
+          <BlurView intensity={80} tint="light" style={[styles.predictionMessageCard, { backgroundColor: winRateBackgroundColor }]}>
+            <Text style={styles.predictionMessage}>{winRateMessage}</Text>
+          </BlurView>
         </View>
       )}
     </ScrollView>
@@ -706,9 +699,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1976D2',
   },
-  predictionGrid: {
+  predictionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 12,
     gap: 12,
   },
   predictionCard: {
@@ -720,6 +714,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
     overflow: 'hidden',
+    justifyContent: 'center',
   },
   predictionLabel: {
     fontSize: 14,
@@ -731,13 +726,29 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontWeight: 'bold',
     color: '#7896AA',
+    textAlign: 'center',
+  },
+  predictionMessageCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    overflow: 'hidden',
+  },
+  predictionMessageLabel: {
+    fontSize: 14,
+    color: '#757575',
     marginBottom: 12,
+    fontWeight: '600',
   },
   predictionMessage: {
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: 'bold',
     color: '#424242',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
   },
   lineupContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
