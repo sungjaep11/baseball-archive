@@ -1,10 +1,11 @@
+import { BlurView } from 'expo-blur';
 import React, { useMemo } from 'react';
 import {
   Dimensions,
   ScrollView,
   StyleSheet,
   Text,
-  View,
+  View
 } from 'react-native';
 import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
 import { Player, PlayerPosition } from '../types/player';
@@ -452,22 +453,22 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>타자 평균 기록</Text>
         <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
+          <BlurView intensity={80} tint="light" style={styles.statCard}>
             <Text style={styles.statLabel}>타율</Text>
             <Text style={styles.statValue}>{teamStats.battingAvg.toFixed(3)}</Text>
-          </View>
-          <View style={styles.statCard}>
+          </BlurView>
+          <BlurView intensity={80} tint="light" style={styles.statCard}>
             <Text style={styles.statLabel}>타점</Text>
             <Text style={styles.statValue}>{teamStats.rbis.toFixed(1)}</Text>
-          </View>
-          <View style={styles.statCard}>
+          </BlurView>
+          <BlurView intensity={80} tint="light" style={styles.statCard}>
             <Text style={styles.statLabel}>홈런</Text>
             <Text style={styles.statValue}>{teamStats.homeRuns.toFixed(1)}</Text>
-          </View>
-          <View style={styles.statCard}>
+          </BlurView>
+          <BlurView intensity={80} tint="light" style={styles.statCard}>
             <Text style={styles.statLabel}>득점</Text>
             <Text style={styles.statValue}>{teamStats.runs.toFixed(1)}</Text>
-          </View>
+          </BlurView>
         </View>
       </View>
 
@@ -476,22 +477,22 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>선발 투수 기록</Text>
           <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
+            <BlurView intensity={80} tint="light" style={styles.statCard}>
               <Text style={styles.statLabel}>평균자책점</Text>
               <Text style={styles.statValue}>{(startingPitcher.era || 0).toFixed(2)}</Text>
-            </View>
-            <View style={styles.statCard}>
+            </BlurView>
+            <BlurView intensity={80} tint="light" style={styles.statCard}>
               <Text style={styles.statLabel}>승</Text>
               <Text style={styles.statValue}>{startingPitcher.wins || 0}</Text>
-            </View>
-            <View style={styles.statCard}>
+            </BlurView>
+            <BlurView intensity={80} tint="light" style={styles.statCard}>
               <Text style={styles.statLabel}>패</Text>
               <Text style={styles.statValue}>{startingPitcher.losses || 0}</Text>
-            </View>
-            <View style={styles.statCard}>
+            </BlurView>
+            <BlurView intensity={80} tint="light" style={styles.statCard}>
               <Text style={styles.statLabel}>탈삼진</Text>
               <Text style={styles.statValue}>{startingPitcher.strikeouts || 0}</Text>
-            </View>
+            </BlurView>
           </View>
         </View>
       )}
@@ -501,38 +502,38 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>불펜 투수 평균 기록</Text>
           <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
+            <BlurView intensity={80} tint="light" style={styles.statCard}>
               <Text style={styles.statLabel}>평균자책점</Text>
               <Text style={styles.statValue}>
                 {reliefPitchers.length > 0 
                   ? (reliefPitchers.reduce((sum, p) => sum + (p.era || 0), 0) / reliefPitchers.length).toFixed(2)
                   : '0.00'}
               </Text>
-            </View>
-            <View style={styles.statCard}>
+            </BlurView>
+            <BlurView intensity={80} tint="light" style={styles.statCard}>
               <Text style={styles.statLabel}>세이브</Text>
               <Text style={styles.statValue}>
                 {reliefPitchers.length > 0
                   ? (reliefPitchers.reduce((sum, p) => sum + (p.saves || 0), 0) / reliefPitchers.length).toFixed(1)
                   : '0.0'}
               </Text>
-            </View>
-            <View style={styles.statCard}>
+            </BlurView>
+            <BlurView intensity={80} tint="light" style={styles.statCard}>
               <Text style={styles.statLabel}>홀드</Text>
               <Text style={styles.statValue}>
                 {reliefPitchers.length > 0
                   ? (reliefPitchers.reduce((sum, p) => sum + (p.holds || 0), 0) / reliefPitchers.length).toFixed(1)
                   : '0.0'}
               </Text>
-            </View>
-            <View style={styles.statCard}>
+            </BlurView>
+            <BlurView intensity={80} tint="light" style={styles.statCard}>
               <Text style={styles.statLabel}>탈삼진</Text>
               <Text style={styles.statValue}>
                 {reliefPitchers.length > 0
                   ? (reliefPitchers.reduce((sum, p) => sum + (p.strikeouts || 0), 0) / reliefPitchers.length).toFixed(1)
                   : '0.0'}
               </Text>
-            </View>
+            </BlurView>
           </View>
         </View>
       )}
@@ -541,7 +542,7 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
       {batters.length > 0 && optimalLineup.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>최적의 타순</Text>
-          <View style={styles.lineupContainer}>
+          <BlurView intensity={80} tint="light" style={styles.lineupContainer}>
             {optimalLineup.map((player, index) => (
               <View 
                 key={player.id} 
@@ -564,7 +565,7 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
                 </View>
               </View>
             ))}
-          </View>
+          </BlurView>
         </View>
       )}
 
@@ -572,21 +573,21 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>팀 능력치</Text>
         <PentagonChart abilities={teamAbilities} />
-        <View style={styles.teamAnalysis}>
+        <BlurView intensity={80} tint="light" style={styles.teamAnalysis}>
           <Text style={styles.teamAnalysisText}>
             이 팀은 <Text style={styles.teamTrait}>{teamAnalysis}</Text> 팀입니다.
           </Text>
-        </View>
+        </BlurView>
       </View>
 
       {/* 예상 승률 */}
       {hasData && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>예상 승률</Text>
-          <View style={[styles.winRateContainer, { backgroundColor: winRateBackgroundColor }]}>
+          <BlurView intensity={80} tint="light" style={[styles.winRateContainer, { backgroundColor: winRateBackgroundColor }]}>
             <Text style={styles.winRateValue}>{(expectedWinRate * 100).toFixed(1)}%</Text>
             <Text style={styles.winRateMessage}>{winRateMessage}</Text>
-          </View>
+          </BlurView>
           <Text style={styles.rankText}>예상 순위: {expectedRank}위</Text>
         </View>
       )}
@@ -614,7 +615,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   section: {
-    marginBottom: 30,
+    marginBottom: 24,
     paddingHorizontal: 20,
   },
   sectionTitle: {
@@ -627,18 +628,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    width: '100%',
   },
   statCard: {
-    width: (width - 60) / 2,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    width: (width - 56) / 2, // 20 (section padding) * 2 + 16 (gap between cards)
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    overflow: 'hidden',
   },
   statLabel: {
     fontSize: 14,
@@ -678,8 +676,11 @@ const styles = StyleSheet.create({
   teamAnalysis: {
     marginTop: 20,
     padding: 16,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: 'rgba(240, 244, 247, 0.5)',
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    overflow: 'hidden',
   },
   teamAnalysisText: {
     fontSize: 16,
@@ -694,11 +695,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    overflow: 'hidden',
   },
   winRateValue: {
     fontSize: 48,
@@ -719,21 +723,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   lineupContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 8,
+    padding: 12,
+    overflow: 'hidden',
   },
   lineupItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
   },
   lineupItemLast: {
     borderBottomWidth: 0,

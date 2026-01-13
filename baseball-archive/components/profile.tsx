@@ -277,31 +277,37 @@ export default function Profile({ player, visible, onClose }: ProfileProps) {
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
 
-            {/* 프로필 사진 placeholder */}
+            {/* 프로필 사진과 팀 로고 */}
             <View style={styles.profileImageContainer}>
               <View style={styles.profileImagePlaceholder}>
                 <Text style={styles.profileImageText}>
                   {player.name.charAt(0)}
                 </Text>
               </View>
-            </View>
-
-            {/* 선수 정보 */}
-            <View style={styles.playerInfo}>
-              <Text style={styles.playerName}>{player.name}</Text>
+              {/* 팀 로고 - 사진 아래에 살짝 겹치게 */}
               {(() => {
                 const teamLogo = getTeamLogo(player.team);
                 if (teamLogo) {
                   return (
-                    <Image 
-                      source={teamLogo} 
-                      style={styles.teamLogo}
-                      resizeMode="contain"
-                    />
+                    <View style={styles.teamLogoContainer}>
+                      <Image 
+                        source={teamLogo} 
+                        style={styles.teamLogo}
+                        resizeMode="contain"
+                      />
+                    </View>
                   );
                 }
-                return <Text style={styles.playerTeam}>{player.team}</Text>;
+                return null;
               })()}
+            </View>
+
+            {/* 선수 이름 */}
+            <View style={styles.playerInfo}>
+              <Text style={styles.playerName}>{player.name}</Text>
+              {!getTeamLogo(player.team) && (
+                <Text style={styles.playerTeam}>{player.team}</Text>
+              )}
             </View>
 
             {/* 통계 섹션 */}
@@ -413,6 +419,8 @@ const styles = StyleSheet.create({
   profileImageContainer: {
     marginTop: 12,
     marginBottom: 12,
+    alignItems: 'center',
+    position: 'relative',
   },
   profileImagePlaceholder: {
     width: 100,
@@ -423,14 +431,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.4)',
+    zIndex: 2,
   },
   profileImageText: {
     fontSize: 40,
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
+  teamLogoContainer: {
+    position: 'absolute',
+    top: 70,
+    zIndex: 3,
+  },
   playerInfo: {
     alignItems: 'center',
+    marginTop: 50,
     marginBottom: 16,
   },
   playerName: {
@@ -445,9 +460,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   teamLogo: {
-    width: 80,
-    height: 80,
-    marginTop: 8,
+    width: 70,
+    height: 70,
   },
   playerPosition: {
     fontSize: 16,

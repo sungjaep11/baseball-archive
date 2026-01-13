@@ -149,7 +149,7 @@ export default function BaseballField() {
 
     const renderPanelContent = () => {
         switch (activeTab) {
-            case 'album': return <Album selectedPlayers={selectedPlayers} />;
+            case 'album': return <Album selectedPlayers={selectedPlayers} startingPitcher={startingPitcher} reliefPitchers={reliefPitchers} />;
             case 'roster': return (
                 <PlayerSelector 
                     selectedPlayers={selectedPlayers} 
@@ -415,21 +415,21 @@ const styles = StyleSheet.create({
     
     playersLayer: { width: '100%', height: '100%', position: 'absolute', zIndex: 20 },
     playerContainer: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-    playerIcon: { width: 130, height: 130, resizeMode: 'contain', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 8 },
-    nameTag: { position: 'absolute', top: 70, backgroundColor: '#ffffff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 2, borderColor: '#5d4037', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 5, zIndex: 25 },
+    playerIcon: { width: 150, height: 150, resizeMode: 'contain', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 8 },
+    nameTag: { position: 'absolute', top: 90, backgroundColor: '#ffffff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 2, borderColor: '#5d4037', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 5, zIndex: 25 },
     nameText: { fontSize: 12, fontWeight: 'bold', color: '#5d4037', textAlign: 'center' },
     
-    pitcher: { top: '68%', left: '50%', marginTop: -65, marginLeft: -65 },
-    relief1: { top: '85%', left: '10%', marginTop: -65, marginLeft: -65 },
-    relief2: { top: '85%', right: '10%', marginTop: -65, marginRight: -65 },
-    relief3: { top: '85%', left: '25%', marginTop: -65, marginLeft: -65 },
-    relief4: { top: '85%', right: '25%', marginTop: -65, marginRight: -65 },
-    catcher: { bottom: '10%', left: '50%', marginLeft: -68 },
-    firstBaseman: { top: '68%', right: '-3%', marginTop: -65 },
-    secondBaseman: { top: '55%', right: '15%', marginTop: -65 },
-    shortstop: { top: '55%', left: '15%', marginTop: -65 },
-    thirdBaseman: { top: '68%', left: '-4%', marginTop: -65 },
-    leftFielder: { top: '35%', left: '5%', marginTop: -65 },
-    centerFielder: { top: '27%', left: '50%', marginLeft: -65, marginTop: -65 },
-    rightFielder: { top: '35%', right: '5%', marginTop: -65 },
+    pitcher: { top: '65%', left: '47%', marginTop: -65, marginLeft: -65 },
+    relief1: { top: '83%', left: '10%', marginTop: -65, marginLeft: -65 },
+    relief2: { top: '83%', right: '10%', marginTop: -65, marginRight: -65 },
+    relief3: { top: '83%', left: '25%', marginTop: -65, marginLeft: -65 },
+    relief4: { top: '83%', right: '25%', marginTop: -65, marginRight: -65 },
+    catcher: { bottom: '11%', left: '48%', marginLeft: -68 },
+    firstBaseman: { top: '65%', right: '-3%', marginTop: -65 },
+    secondBaseman: { top: '53%', right: '14%', marginTop: -65 },
+    shortstop: { top: '53%', left: '13%', marginTop: -65 },
+    thirdBaseman: { top: '65%', left: '-4%', marginTop: -65 },
+    leftFielder: { top: '40%', left: '1%', marginTop: -65 },
+    centerFielder: { top: '30%', left: '47%', marginLeft: -65, marginTop: -65 },
+    rightFielder: { top: '40%', right: '1%', marginTop: -65 },
 });

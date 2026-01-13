@@ -32,9 +32,11 @@ interface PlayerImage {
 
 interface AlbumProps {
     selectedPlayers: Partial<Record<PlayerPosition, Player>>;
+    startingPitcher?: Player | null;
+    reliefPitchers?: Player[];
 }
 
-export default function Album({ selectedPlayers }: AlbumProps) {
+export default function Album({ selectedPlayers, startingPitcher, reliefPitchers = [] }: AlbumProps) {
     const [allImages, setAllImages] = useState<PlayerImage[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState<PlayerImage | null>(null);
@@ -48,11 +50,26 @@ export default function Album({ selectedPlayers }: AlbumProps) {
 
     const fetchPlayerImages = async () => {
         try {
-            const response = await fetch(`${API_URL}/api/player-images/`);
+            // 타임아웃 설정 (10초)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            
+            const response = await fetch(`${API_URL}/api/player-images/`, {
+                signal: controller.signal,
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const data = await response.json();
-            setAllImages(data);
-        } catch (error) {
+            setAllImages(data || []);
+        } catch (error: any) {
             console.error('이미지 로드 실패:', error);
+            // 에러가 발생해도 빈 배열로 설정하여 로딩 상태 해제
+            setAllImages([]);
         } finally {
             setLoading(false);
         }
@@ -60,12 +77,26 @@ export default function Album({ selectedPlayers }: AlbumProps) {
 
     // 선택된 선수의 이미지만 필터링
     const filteredImages = allImages.filter(img => {
-        // 선택된 선수 목록 확인
+        // 선택된 선수 목록 확인 (타자)
         const selectedPlayerNames = Object.values(selectedPlayers)
             .filter(player => player !== undefined)
             .map(player => player!.name);
         
-        return selectedPlayerNames.includes(img.playerName);
+        // 투수 목록 추가
+        const pitcherNames: string[] = [];
+        if (startingPitcher) {
+            pitcherNames.push(startingPitcher.name);
+        }
+        reliefPitchers.forEach(pitcher => {
+            if (pitcher) {
+                pitcherNames.push(pitcher.name);
+            }
+        });
+        
+        // 모든 선수 이름 합치기
+        const allSelectedNames = [...selectedPlayerNames, ...pitcherNames];
+        
+        return allSelectedNames.includes(img.playerName);
     });
 
     // 선수 카드 클릭 핸들러
@@ -82,7 +113,9 @@ export default function Album({ selectedPlayers }: AlbumProps) {
     // 표시할 이미지: 선택된 선수가 있을 때만 필터링, 없으면 빈 배열
     // 같은 선수의 이미지가 같은 행에 나타나도록 정렬
     const displayImages = useMemo(() => {
-        if (Object.keys(selectedPlayers).length === 0) {
+        // 타자나 투수가 하나도 선택되지 않았으면 빈 배열 반환
+        const hasSelectedPlayers = Object.keys(selectedPlayers).length > 0 || startingPitcher || reliefPitchers.length > 0;
+        if (!hasSelectedPlayers) {
             return [];
         }
         
@@ -112,7 +145,7 @@ export default function Album({ selectedPlayers }: AlbumProps) {
         });
         
         return sortedImages;
-    }, [filteredImages, selectedPlayers, filteredPlayerName]);
+    }, [filteredImages, selectedPlayers, startingPitcher, reliefPitchers, filteredPlayerName]);
 
     const renderItem = ({ item }: { item: PlayerImage }) => {
         const isHovered = hoveredId === item.id;
@@ -147,6 +180,44 @@ export default function Album({ selectedPlayers }: AlbumProps) {
         setSelectedImage(null);
     };
 
+    // 모든 선택된 선수 목록 생성 (타자 + 투수)
+    const allSelectedPlayers = useMemo(() => {
+        const players: Array<{ player: Player; position: string; positionKey: string }> = [];
+        
+        // 타자 추가
+        Object.entries(selectedPlayers).forEach(([position, player]) => {
+            if (player) {
+                players.push({
+                    player,
+                    position: POSITION_NAMES[position as PlayerPosition],
+                    positionKey: position,
+                });
+            }
+        });
+        
+        // 선발 투수 추가
+        if (startingPitcher) {
+            players.push({
+                player: startingPitcher,
+                position: '선발 투수',
+                positionKey: 'starting-pitcher',
+            });
+        }
+        
+        // 불펜 투수 추가
+        reliefPitchers.forEach((pitcher, index) => {
+            if (pitcher) {
+                players.push({
+                    player: pitcher,
+                    position: `불펜 ${index + 1}`,
+                    positionKey: `relief-pitcher-${index}`,
+                });
+            }
+        });
+        
+        return players;
+    }, [selectedPlayers, startingPitcher, reliefPitchers]);
+
     if (loading) {
         return (
             <View style={[styles.container, styles.centerContent]}>
@@ -159,7 +230,7 @@ export default function Album({ selectedPlayers }: AlbumProps) {
     return (
         <View style={styles.container}>
             {/* 선택된 선수 리스트 */}
-            {Object.keys(selectedPlayers).length > 0 && (
+            {allSelectedPlayers.length > 0 && (
                 <View style={styles.selectedPlayersHeader}>
                     <ScrollView 
                         horizontal 
@@ -167,13 +238,12 @@ export default function Album({ selectedPlayers }: AlbumProps) {
                         style={styles.playerChipsContainer}
                         contentContainerStyle={styles.playerChipsContent}
                     >
-                        {Object.entries(selectedPlayers).map(([position, player]) => {
-                            if (!player) return null;
+                        {allSelectedPlayers.map(({ player, position, positionKey }) => {
                             const isSelected = filteredPlayerName === player.name;
                             const blurIntensity = Platform.OS === 'android' ? 30 : 20;
                             return (
                                 <TouchableOpacity
-                                    key={position}
+                                    key={positionKey}
                                     style={styles.playerChipContainer}
                                     onPress={() => handlePlayerChipClick(player.name)}
                                     activeOpacity={0.8}
@@ -191,7 +261,7 @@ export default function Album({ selectedPlayers }: AlbumProps) {
                                                 styles.chipPosition,
                                                 isSelected && styles.chipPositionSelected
                                             ]}>
-                                                {POSITION_NAMES[position as PlayerPosition]}
+                                                {position}
                                             </Text>
                                             <Text style={[
                                                 styles.chipName,

@@ -252,16 +252,71 @@ def get_player_images(request):
         
         # 모든 이미지 파일 찾기
         image_files = []
+        player_names_from_files = set()
+        
+        # 먼저 모든 이미지 파일에서 선수 이름 추출
         for filename in os.listdir(player_images_dir):
             if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                # 파일명에서 선수 이름 추출 (예: "네일_1.jpg" -> "네일")
                 player_name = filename.split('_')[0]
+                player_names_from_files.add(player_name)
+        
+        # DB에서 한 번에 모든 선수 정보 조회 (배치 처리)
+        player_info_map = {}  # {선수명: position}
+        
+        if player_names_from_files:
+            with connection.cursor() as cursor:
+                # 투수 정보 일괄 조회
+                placeholders = ','.join(['%s'] * len(player_names_from_files))
+                cursor.execute(f"""
+                    SELECT DISTINCT `선수명`
+                    FROM `kbo_pitchers_top150`
+                    WHERE `선수명` IN ({placeholders})
+                """, list(player_names_from_files))
+                pitchers = {row[0] for row in cursor.fetchall()}
+                
+                # 타자 정보 일괄 조회
+                cursor.execute(f"""
+                    SELECT DISTINCT h.`선수명`, d.`포지션`
+                    FROM `kbo_hitters_top150` h
+                    LEFT JOIN `kbo_defense_positions` d ON h.`선수명` = d.`선수명`
+                    WHERE h.`선수명` IN ({placeholders})
+                """, list(player_names_from_files))
+                
+                # 한글 포지션을 프론트엔드 포지션으로 매핑
+                position_kr_to_en = {
+                    '포수': 'catcher',
+                    '1루수': 'first',
+                    '2루수': 'second',
+                    '유격수': 'shortstop',
+                    '3루수': 'third',
+                    '좌익수': 'left',
+                    '중견수': 'center',
+                    '우익수': 'right',
+                }
+                
+                for row in cursor.fetchall():
+                    player_name = row[0]
+                    db_position = row[1] if row[1] else None
+                    if db_position and db_position in position_kr_to_en:
+                        player_info_map[player_name] = position_kr_to_en[db_position]
+                
+                # 투수는 'pitcher'로 설정
+                for pitcher_name in pitchers:
+                    player_info_map[pitcher_name] = 'pitcher'
+        
+        # 이미지 파일과 선수 정보 매칭
+        for filename in os.listdir(player_images_dir):
+            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                player_name = filename.split('_')[0]
+                position = player_info_map.get(player_name, None)
                 
                 image_files.append({
                     'id': filename,
                     'playerName': player_name,
                     'fileName': filename,
-                    'imageUrl': f"{request.build_absolute_uri(settings.MEDIA_URL)}{filename}"
+                    'imageUrl': f"{request.build_absolute_uri(settings.MEDIA_URL)}{filename}",
+                    'position': position,
+                    'playerId': None,
                 })
         
         return Response(image_files, status=status.HTTP_200_OK)
