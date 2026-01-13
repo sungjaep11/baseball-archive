@@ -24,13 +24,24 @@ def setup_driver(headless=False):
     chrome_options.add_argument('--disable-gpu')
     chrome_options.add_argument('--window-size=1920,1080')
     chrome_options.add_argument('user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36')
+    # macOS 보안 문제 해결을 위한 추가 옵션
+    chrome_options.add_argument('--remote-debugging-port=9222')
     
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    return driver
+    try:
+        # ChromeDriver 자동 설치 및 실행 권한 부여
+        driver_path = ChromeDriverManager().install()
+        # 실행 권한 부여
+        os.chmod(driver_path, 0o755)
+        service = Service(driver_path)
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        return driver
+    except Exception as e:
+        print(f"❌ ChromeDriver 설정 오류: {e}")
+        print("💡 ChromeDriver를 수동으로 설치하거나 Chrome 브라우저를 업데이트해주세요.")
+        raise
 
 def crawl_page(driver, page_num):
-    """특정 페이지의 수비 기록 크롤링 (선수명 + 포지션만)"""
+    """특정 페이지의 수비 기록 크롤링 (모든 통계 데이터)"""
     print(f"📄 {page_num}페이지 크롤링 중...")
     
     # 한글 포지션 → 영문 포지션 매핑
@@ -61,7 +72,7 @@ def crawl_page(driver, page_num):
             table = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, selector)))
             print(f"  ✓ 테이블 발견: {selector}")
             break
-        except:
+        except Exception:
             continue
     
     if not table:
@@ -70,26 +81,58 @@ def crawl_page(driver, page_num):
             f.write(driver.page_source)
         raise Exception("테이블을 찾을 수 없습니다.")
     
+    # 테이블 헤더에서 모든 컬럼명 가져오기
+    column_headers = []
+    try:
+        header_row = table.find_element(By.CSS_SELECTOR, "thead tr")
+        header_cols = header_row.find_elements(By.TAG_NAME, "th")
+        column_headers = [col.text.strip() for col in header_cols]
+        print(f"  📊 테이블 컬럼 수: {len(column_headers)}개")
+        print(f"  📋 컬럼 목록: {column_headers}")
+    except Exception as e:
+        print(f"  ⚠️ 헤더를 찾을 수 없습니다: {e}")
+        # 헤더를 찾을 수 없으면 기본 컬럼명 사용
+        column_headers = ['순위', '선수명', '팀명', '포지션']
+    
     rows = table.find_elements(By.CSS_SELECTOR, "tbody tr")
     
     page_data = []
     for row in rows:
         try:
             cols = row.find_elements(By.TAG_NAME, "td")
-            if len(cols) >= 4:  # 순위, 선수명, 팀명, POS 최소 필요
-                position_kr = cols[3].text.strip()  # 한글 포지션
-                position_en = position_mapping.get(position_kr, '')  # 영문 포지션 변환
+            col_count = len(cols)
+            
+            if col_count >= 4:  # 최소 순위, 선수명, 팀명, 포지션
+                player_data = {}
                 
-                player_data = {
-                    '순위': cols[0].text.strip(),
-                    '선수명': cols[1].text.strip(),
-                    '팀명': cols[2].text.strip(),
-                    '포지션': position_kr,  # 한글 포지션
-                    '포지션_영문': position_en,  # 영문 포지션
-                }
+                # 모든 컬럼 데이터 수집
+                for i, header in enumerate(column_headers):
+                    if i < col_count:
+                        # 컬럼명이 비어있으면 인덱스로 대체
+                        col_name = header if header else f'컬럼{i}'
+                        player_data[col_name] = cols[i].text.strip()
+                    else:
+                        player_data[header] = ''
+                
+                # 추가 컬럼이 있으면 인덱스로 추가
+                if col_count > len(column_headers):
+                    for i in range(len(column_headers), col_count):
+                        player_data[f'컬럼{i}'] = cols[i].text.strip()
+                
+                # 포지션 영문 변환 추가
+                if '포지션' in player_data:
+                    position_kr = player_data['포지션']
+                    position_en = position_mapping.get(position_kr, '')
+                    player_data['포지션_영문'] = position_en
+                
                 page_data.append(player_data)
-                print(f"  ✓ {player_data['선수명']} ({player_data['팀명']}) - {player_data['포지션']} ({position_en})")
+                player_name = player_data.get('선수명', '')
+                team_name = player_data.get('팀명', '')
+                position = player_data.get('포지션', '')
+                position_en = player_data.get('포지션_영문', '')
+                print(f"  ✓ {player_name} ({team_name}) - {position} ({position_en}) - {col_count}개 컬럼")
         except Exception as e:
+            print(f"  ⚠️ 행 파싱 실패: {e}")
             continue
     
     return page_data
@@ -126,7 +169,7 @@ def click_next_page(driver, page_num):
 def main():
     """메인 크롤링 함수"""
     print("=" * 60)
-    print("🛡️  KBO 수비 기록 크롤링 (포지션 정보)")
+    print("🛡️  KBO 수비 기록 크롤링 (모든 통계 데이터)")
     print("=" * 60)
     
     url = "https://www.koreabaseball.com/Record/Player/Defense/Basic.aspx"
@@ -171,7 +214,8 @@ def main():
         df.to_csv(output_csv, index=False, encoding='utf-8-sig')
         print("=" * 60)
         print(f"✅ CSV 저장 완료: {output_csv}")
-        print(f"📊 총 {len(df)}명의 선수 포지션 정보 수집")
+        print(f"📊 총 {len(df)}명의 선수 수비 기록 수집")
+        print(f"📋 총 {len(df.columns)}개 컬럼: {', '.join(df.columns.tolist())}")
         print("=" * 60)
         
         # 엑셀 저장
@@ -181,10 +225,11 @@ def main():
         print("=" * 60)
         
         # 포지션별 통계
-        print("\n📊 포지션별 선수 수:")
-        position_counts = df['포지션'].value_counts()
-        for pos, count in position_counts.items():
-            print(f"  {pos}: {count}명")
+        if '포지션' in df.columns:
+            print("\n📊 포지션별 선수 수:")
+            position_counts = df['포지션'].value_counts()
+            for pos, count in position_counts.items():
+                print(f"  {pos}: {count}명")
         
         # 데이터 미리보기
         print("\n📋 수집된 데이터 미리보기:")

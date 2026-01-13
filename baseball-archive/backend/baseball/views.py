@@ -159,10 +159,8 @@ def get_players_by_position_mysql(request):
             
             with connection.cursor() as cursor:
                 # INNER JOIN 사용: 포지션 정보가 있는 선수만 가져오기
-                # 영문 포지션(C, 1B 등)을 한글 포지션(포수, 1루수 등)으로 변환
-                position_kr = {v: k for k, v in POSITION_KR_TO_EN.items()}.get(db_position, '')
-                if not position_kr:
-                    continue  # 매핑되지 않은 포지션은 스킵
+                # d.POS는 영문 포지션(C, 1B 등)이므로 db_position을 그대로 사용
+                # db_position은 이미 영문 포지션 (C, 1B, 2B 등)
                 
                 # 포지션_영문 컬럼이 있는지 확인 후 쿼리 실행
                 # 도루 대신 득점(R) 사용
@@ -171,7 +169,7 @@ def get_players_by_position_mysql(request):
                         h.`순위`, 
                         h.`선수명`, 
                         h.`팀명`, 
-                        d.`포지션` AS `포지션_한글`,
+                        d.`POS` AS `포지션_영문`,
                         h.`AVG`, 
                         h.`G`, 
                         h.`PA`, 
@@ -190,9 +188,9 @@ def get_players_by_position_mysql(request):
                     INNER JOIN `kbo_defense_positions` d 
                         ON h.`선수명` = d.`선수명` 
                         AND h.`팀명` = d.`팀명`
-                    WHERE d.`포지션` = %s
+                    WHERE d.`POS` = %s
                     ORDER BY h.`TB` DESC
-                """, [position_kr])
+                """, [db_position])
                 columns = [col[0] for col in cursor.description]
                 position_players = [dict(zip(columns, row)) for row in cursor.fetchall()]
             

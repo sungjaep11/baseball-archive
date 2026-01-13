@@ -27,7 +27,13 @@ except ImportError:
 
 IMAGE_FOLDER = 'player_images'
 
-def upload_s3_and_update_db():
+def upload_s3_and_update_db(clear_existing=False):
+    """
+    player_images 폴더의 이미지를 S3에 업로드하고 photo_data 테이블에 저장합니다.
+    
+    Args:
+        clear_existing (bool): True이면 기존 photo_data 테이블의 모든 데이터를 삭제하고 새로 시작
+    """
     # 1. S3 연결
     s3 = boto3.client('s3', 
                       aws_access_key_id=AWS_ACCESS_KEY,
@@ -37,7 +43,34 @@ def upload_s3_and_update_db():
 
     # 2. DB 연결
     conn = pymysql.connect(**DB_CONFIG)
-    cursor = conn.cursor()
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+    # 3. 기존 데이터 삭제 옵션
+    if clear_existing:
+        try:
+            cursor.execute("TRUNCATE TABLE photo_data")
+            conn.commit()
+            print("🗑️  기존 photo_data 테이블 데이터를 모두 삭제했습니다.")
+        except Exception as e:
+            print(f"⚠️ 테이블 삭제 중 오류 (테이블이 없을 수 있음): {e}")
+            # 테이블이 없으면 생성
+            try:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS photo_data (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        player_id VARCHAR(20) NULL,
+                        player_name VARCHAR(100) NOT NULL,
+                        image_1 VARCHAR(500) NULL,
+                        image_2 VARCHAR(500) NULL,
+                        image_3 VARCHAR(500) NULL,
+                        profile_img VARCHAR(500) NULL,
+                        INDEX idx_player_name (player_name)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """)
+                conn.commit()
+                print("✅ photo_data 테이블을 생성했습니다.")
+            except Exception as e2:
+                print(f"⚠️ 테이블 생성 중 오류: {e2}")
 
     files = os.listdir(IMAGE_FOLDER)
     print(f"🚀 {len(files)}개의 이미지를 S3로 전송합니다...")
@@ -115,23 +148,59 @@ def upload_s3_and_update_db():
                     # 컬럼이 없거나 이미 VARCHAR 타입이면 무시
                     print(f"  ℹ️ {target_column} 컬럼 타입 확인/변경: {e}")
 
-                # (5) DB 업데이트 또는 삽입 (기존 컬럼에 URL 저장)
+                # (5) kbo_hitters_top150 또는 kbo_pitchers_top150에서 player_id 조회
+                player_id = None
+                try:
+                    # 타자 테이블에서 먼저 조회
+                    cursor.execute("""
+                        SELECT player_id FROM kbo_hitters_top150 
+                        WHERE 선수명 = %s 
+                        LIMIT 1
+                    """, (player_name,))
+                    result = cursor.fetchone()
+                    if result and result.get('player_id'):
+                        player_id = result.get('player_id')
+                    else:
+                        # 타자 테이블에 없으면 투수 테이블에서 조회
+                        cursor.execute("""
+                            SELECT player_id FROM kbo_pitchers_top150 
+                            WHERE 선수명 = %s 
+                            LIMIT 1
+                        """, (player_name,))
+                        result = cursor.fetchone()
+                        if result and result.get('player_id'):
+                            player_id = result.get('player_id')
+                except Exception as e:
+                    print(f"  ⚠️ player_id 조회 중 오류: {e}")
+
+                # (6) DB 업데이트 또는 삽입 (기존 컬럼에 URL 저장)
                 # 먼저 해당 선수가 있는지 확인
-                cursor.execute("SELECT id FROM photo_data WHERE player_name = %s", (player_name,))
+                cursor.execute("SELECT id, player_id FROM photo_data WHERE player_name = %s", (player_name,))
                 existing_row = cursor.fetchone()
                 
                 if existing_row:
                     # 기존 행이 있으면 UPDATE
-                    sql = f"UPDATE photo_data SET {target_column} = %s WHERE player_name = %s"
-                    cursor.execute(sql, (image_url, player_name))
+                    # player_id가 없고 조회한 player_id가 있으면 함께 업데이트
+                    if not existing_row.get('player_id') and player_id:
+                        sql = f"UPDATE photo_data SET {target_column} = %s, player_id = %s WHERE player_name = %s"
+                        cursor.execute(sql, (image_url, player_id, player_name))
+                        print(f"🔄 업데이트: {player_name} ({image_type}) [player_id: {player_id}] -> {image_url}")
+                    else:
+                        sql = f"UPDATE photo_data SET {target_column} = %s WHERE player_name = %s"
+                        cursor.execute(sql, (image_url, player_name))
+                        print(f"🔄 업데이트: {player_name} ({image_type}) -> {image_url}")
                     conn.commit()
-                    print(f"🔄 업데이트: {player_name} ({image_type}) -> {image_url}")
                 else:
-                    # 기존 행이 없으면 INSERT (player_id는 NULL로, 나중에 채울 수 있음)
-                    sql = f"INSERT INTO photo_data (player_name, {target_column}) VALUES (%s, %s)"
-                    cursor.execute(sql, (player_name, image_url))
+                    # 기존 행이 없으면 INSERT (player_id도 함께 저장)
+                    if player_id:
+                        sql = f"INSERT INTO photo_data (player_name, player_id, {target_column}) VALUES (%s, %s, %s)"
+                        cursor.execute(sql, (player_name, player_id, image_url))
+                        print(f"✨ 신규등록: {player_name} ({image_type}) [player_id: {player_id}] -> {image_url}")
+                    else:
+                        sql = f"INSERT INTO photo_data (player_name, {target_column}) VALUES (%s, %s)"
+                        cursor.execute(sql, (player_name, image_url))
+                        print(f"✨ 신규등록: {player_name} ({image_type}) [player_id: NULL] -> {image_url}")
                     conn.commit()
-                    print(f"✨ 신규등록: {player_name} ({image_type}) -> {image_url}")
 
             except Exception as e:
                 print(f"❌ {player_name} 업로드 실패: {e}")
@@ -141,4 +210,23 @@ def upload_s3_and_update_db():
         print("\n🎉 모든 이미지가 S3로 이동했습니다!")
 
 if __name__ == "__main__":
-    upload_s3_and_update_db()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='S3에 이미지 업로드 및 photo_data 테이블 업데이트')
+    parser.add_argument(
+        '--clear',
+        action='store_true',
+        help='기존 photo_data 테이블의 모든 데이터를 삭제하고 새로 시작'
+    )
+    
+    args = parser.parse_args()
+    
+    print("=" * 60)
+    if args.clear:
+        print("⚠️  기존 데이터 삭제 모드로 실행합니다.")
+    else:
+        print("ℹ️  기존 데이터 유지 모드로 실행합니다. (기존 데이터 삭제하려면 --clear 옵션 사용)")
+    print("=" * 60)
+    print()
+    
+    upload_s3_and_update_db(clear_existing=args.clear)
