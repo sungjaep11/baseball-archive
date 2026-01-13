@@ -83,6 +83,18 @@ interface RecentGameData {
   H: string;
   AB: string;
   AVG: string;
+  HR?: string;
+  RBI?: string;
+  R?: string;
+  PA?: string;
+}
+
+interface RecentPitcherGameData {
+  일자: string;
+  상대: string;
+  IP: string;
+  ER: string;
+  결과: string;
 }
 
 export default function Profile({ player, visible, onClose }: ProfileProps) {
@@ -90,9 +102,13 @@ export default function Profile({ player, visible, onClose }: ProfileProps) {
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   
-  // 최근 경기 데이터 상태
+  // 최근 경기 데이터 상태 (타자)
   const [recentGames, setRecentGames] = useState<RecentGameData[]>([]);
   const [gamesLoading, setGamesLoading] = useState(false);
+  
+  // 최근 경기 데이터 상태 (투수)
+  const [recentPitcherGames, setRecentPitcherGames] = useState<RecentPitcherGameData[]>([]);
+  const [pitcherGamesLoading, setPitcherGamesLoading] = useState(false);
 
   // 프로필 이미지 가져오기
   useEffect(() => {
@@ -164,6 +180,40 @@ export default function Profile({ player, visible, onClose }: ProfileProps) {
     };
 
     fetchRecentGames();
+  }, [player, visible]);
+
+  // 최근 경기 데이터 가져오기 (투수만)
+  useEffect(() => {
+    if (!player || !visible || player.era === undefined) {
+      setRecentPitcherGames([]);
+      return;
+    }
+
+    const fetchRecentPitcherGames = async () => {
+      try {
+        setPitcherGamesLoading(true);
+        const url = API_ENDPOINTS.pitcherRecentGames(player.name);
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: API_HEADERS,
+        });
+
+        if (!response.ok) {
+          console.log('투수 최근 경기 데이터 API 응답 오류:', response.status);
+          return;
+        }
+
+        const data = await response.json();
+        setRecentPitcherGames(data);
+      } catch (error) {
+        console.error('투수 최근 경기 데이터 로드 실패:', error);
+        setRecentPitcherGames([]);
+      } finally {
+        setPitcherGamesLoading(false);
+      }
+    };
+
+    fetchRecentPitcherGames();
   }, [player, visible]);
 
   // 선수 능력치 계산
@@ -444,23 +494,211 @@ export default function Profile({ player, visible, onClose }: ProfileProps) {
       };
     }, [processedData.length, maxHits, chartInnerHeight]);
 
-    // 타율 증가 여부 판단 (최근 3경기 평균 vs 이전 3경기 평균)
-    let isAvgIncreasing = false;
-    if (processedData.length >= 6) {
+    // 타자 성적 분석 및 멘트 생성 (세분화된 알고리즘)
+    let performanceMessage = '';
+    
+    if (processedData.length >= 3) {
+      // 최근 10경기 데이터를 여러 구간으로 나누어 분석
+      const totalGames = processedData.length;
+      
+      // 구간 분할
       const recent3 = processedData.slice(-3);
-      const previous3 = processedData.slice(-6, -3);
-      const recentAvg = recent3.reduce((sum, d) => sum + d.avg, 0) / 3;
-      const previousAvg = previous3.reduce((sum, d) => sum + d.avg, 0) / 3;
-      isAvgIncreasing = recentAvg > previousAvg;
-    } else if (processedData.length >= 2) {
-      const recent2 = processedData.slice(-2);
-      const previous2 = processedData.slice(-4, -2);
-      if (previous2.length > 0) {
-        const recentAvg = recent2.reduce((sum, d) => sum + d.avg, 0) / recent2.length;
-        const previousAvg = previous2.reduce((sum, d) => sum + d.avg, 0) / previous2.length;
-        isAvgIncreasing = recentAvg > previousAvg;
+      const recent5 = processedData.slice(-5);
+      const middle3 = totalGames >= 6 ? processedData.slice(-6, -3) : [];
+      const previous5 = totalGames >= 10 ? processedData.slice(-10, -5) : processedData.slice(0, Math.max(0, totalGames - 5));
+      
+      // 평균값 계산
+      const calcAvg = (data: typeof processedData, startIndex: number = 0) => {
+        if (data.length === 0) return { hits: 0, avg: 0, ab: 0 };
+        return {
+          hits: data.reduce((sum, d) => sum + d.hits, 0) / data.length,
+          avg: data.reduce((sum, d) => sum + d.avg, 0) / data.length,
+          ab: data.reduce((sum, d, idx) => {
+            const gameIndex = startIndex + idx;
+            const ab = parseInt(recentGames[gameIndex]?.AB || '0', 10);
+            return sum + ab;
+          }, 0) / data.length,
+        };
+      };
+      
+      // 인덱스 계산 (processedData는 recentGames와 동일한 순서)
+      const recent3StartIdx = totalGames - 3;
+      const recent5StartIdx = totalGames - 5;
+      
+      const recent3Avg = calcAvg(recent3, recent3StartIdx);
+      const recent5Avg = calcAvg(recent5, recent5StartIdx);
+      const middle3StartIdx = totalGames >= 6 ? totalGames - 6 : 0;
+      const previous5StartIdx = totalGames >= 10 ? totalGames - 10 : 0;
+      const middle3Avg = calcAvg(middle3, middle3StartIdx);
+      const previous5Avg = calcAvg(previous5, previous5StartIdx);
+      const overallAvg = calcAvg(processedData, 0);
+      
+      // 변화량 계산
+      const hitsChange5 = recent5Avg.hits - previous5Avg.hits;
+      const avgChange5 = recent5Avg.avg - previous5Avg.avg;
+      const hitsChange3 = recent3Avg.hits - (middle3Avg.hits || recent3Avg.hits);
+      const avgChange3 = recent3Avg.avg - (middle3Avg.avg || recent3Avg.avg);
+      
+      // 특별한 경기 수 계산
+      const recent3ZeroHits = recent3.filter(d => d.hits === 0).length;
+      const recent5ZeroHits = recent5.filter(d => d.hits === 0).length;
+      const recent3MultiHits = recent3.filter(d => d.hits >= 2).length;
+      const recent5MultiHits = recent5.filter(d => d.hits >= 2).length;
+      
+      // 홈런 수 계산
+      const recent3HR = recent3.reduce((sum, d, idx) => {
+        const gameIndex = recent3StartIdx + idx;
+        const hr = parseInt(recentGames[gameIndex]?.HR || '0', 10);
+        return sum + hr;
+      }, 0);
+      const recent5HR = recent5.reduce((sum, d, idx) => {
+        const gameIndex = recent5StartIdx + idx;
+        const hr = parseInt(recentGames[gameIndex]?.HR || '0', 10);
+        return sum + hr;
+      }, 0);
+      
+      // 안정성 판단 (표준편차 기반)
+      const calcStdDev = (data: typeof processedData, type: 'hits' | 'avg', startIdx: number = 0) => {
+        if (data.length < 2) return 0;
+        const avg = calcAvg(data, startIdx)[type];
+        const variance = data.reduce((sum, d) => sum + Math.pow(d[type] - avg, 2), 0) / data.length;
+        return Math.sqrt(variance);
+      };
+      
+      const hitsStable = Math.abs(hitsChange5) < 0.5 && calcStdDev(recent5, 'hits', recent5StartIdx) < 1.0;
+      const avgStable = Math.abs(avgChange5) < 0.1 && calcStdDev(recent5, 'avg', recent5StartIdx) < 0.15;
+      const hitsVeryStable = Math.abs(hitsChange5) < 0.3 && calcStdDev(recent5, 'hits', recent5StartIdx) < 0.5;
+      const avgVeryStable = Math.abs(avgChange5) < 0.05 && calcStdDev(recent5, 'avg', recent5StartIdx) < 0.1;
+      
+      // 개선/악화 판단
+      const avgIncreasing = avgChange5 > 0.1;
+      const avgIncreasing3 = avgChange3 > 0.1;
+      const avgDecreasing = avgChange5 < -0.1;
+      const hitsIncreasing = hitsChange5 > 0.5;
+      const hitsIncreasing3 = hitsChange3 > 0.5;
+      const hitsDecreasing = hitsChange5 < -0.5;
+      
+      // 판단 기준
+      const avgExcellent = recent5Avg.avg >= 0.350;
+      const avgGood = recent5Avg.avg >= 0.300;
+      const avgFair = recent5Avg.avg >= 0.250;
+      const avgPoor = recent5Avg.avg < 0.200;
+      const hitsStrong = recent5Avg.hits >= 1.5;
+      const hitsVeryStrong = recent5Avg.hits >= 2.0;
+      
+      // 멘트 생성 (우선순위 순 - 재미있고 생동감 있게)
+      
+      // 1. 최고의 상태 (연속 멀티히트, 홈런 포함)
+      if (recent3MultiHits === 3 && recent3HR >= 2) {
+        const messages = [
+          '🔥 최근 3경기 모두 멀티히트에 홈런까지! 완전 타격왕 모드예요!',
+          '⚡ 3경기 연속 멀티히트에 홈런 2개 이상! 이거 완전 슬러거 아니에요?',
+          '💎 최근 3경기 모두 멀티히트! 홈런까지 터뜨렸어요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (recent3MultiHits === 3) {
+        const messages = [
+          '🔥 최근 3경기 모두 멀티히트! 완전 타격감 폭발이에요!',
+          '⚡ 3경기 연속 멀티히트! 타자들이 포기할 만해요!',
+          '💎 최근 3경기 모두 멀티히트! 완전 타격왕 모드예요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (recent5MultiHits >= 4) {
+        const messages = [
+          '🛡️ 최근 5경기 중 4경기 멀티히트! 완전 타격감 폭발이에요!',
+          '🔥 최근 5경기 중 4경기 멀티히트! 이거 완전 슬러거 아니에요?',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      }
+      // 2. 완벽한 타격 (타율 높고 안타 많음)
+      else if (hitsVeryStrong && avgExcellent && hitsStable) {
+        const messages = [
+          '💎 완벽한 타격! 안타도 많고 타율도 높아요!',
+          '⭐ 이거 완전 타격왕 아니에요? 안타도 많고 타율도 높네요!',
+          '🏆 타격의 교과서 같은 모습이에요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (hitsStrong && avgExcellent && recent3MultiHits >= 2) {
+        performanceMessage = '⭐ 최근 3경기 중 2경기 멀티히트! 완전 타격왕 모드예요!';
+      }
+      // 3. 개선 추세 (타율 크게 증가)
+      else if (avgIncreasing3 && recent3Avg.avg >= 0.350 && middle3Avg.avg < 0.250) {
+        const messages = [
+          '📈 타율이 크게 올라갔어요! 완전히 각성한 모드예요!',
+          '🚀 타율이 반토막 올라갔어요! 이거 완전 부활 아니에요?',
+          '✨ 완전히 달라졌어요! 타격감이 완벽해졌네요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (avgIncreasing && avgGood && hitsStable) {
+        const messages = [
+          '🚀 타율이 계속 올라가고 있어요! 상승세가 눈에 띄네요!',
+          '📈 타격감이 좋아지고 있어요! 좋은 흐름이 이어지고 있어요!',
+          '✨ 점점 나아지고 있어요! 타격감이 좋아지고 있네요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (avgIncreasing3 && recent3Avg.avg >= 0.300) {
+        performanceMessage = '✨ 최근 타율이 크게 올라갔어요! 좋은 흐름이 이어지고 있어요!';
+      }
+      // 4. 안타 수 증가
+      else if (hitsIncreasing3 && avgGood && recent3Avg.hits >= 2.0) {
+        const messages = [
+          '💪 안타 수가 폭발했어요! 타격감이 최고조예요!',
+          '🏋️ 안타를 많이 치고 있어요! 타격감이 완전 좋아졌어요!',
+          '🔥 안타 수가 늘어났어요! 타격왕다운 모습이에요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (hitsIncreasing && avgFair && hitsStrong) {
+        performanceMessage = '🏋️ 안타 수가 늘어나며 타격감이 좋아지고 있어요!';
+      }
+      // 5. 안정적인 타격
+      else if (hitsStable && avgStable && avgExcellent) {
+        const messages = [
+          '🎯 기복 없는 편안함, 최근 내내 "타격왕 모드"를 유지 중입니다!',
+          '🛡️ 완전 안정적이에요! 매 경기 똑같이 좋은 타격을 보여주고 있어요!',
+          '💎 기복이 전혀 없어요! 이거 완전 타격왕 아니에요?',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (hitsStable && avgStable && avgGood) {
+        performanceMessage = '🛡️ 매우 안정적인 타격! 매 경기 일정한 모습을 보여주고 있어요!';
+      } else if (hitsStable && avgStable && avgFair) {
+        performanceMessage = '📊 안정적인 타격을 보여주고 있어요. 기복이 없네요!';
+      }
+      // 6. 타율이 좋은 상태
+      else if (avgExcellent && hitsStrong) {
+        const messages = [
+          '🔥 타율이 3할 5푼 이상이에요! 완전 타격왕 수준이에요!',
+          '⚡ 타율이 높은데 안타도 많아요! 이거 완전 슬러거 아니에요?',
+          '💎 타격감이 완벽해요! 타자들이 힘들어 보여요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (avgGood && hitsStable) {
+        performanceMessage = '✅ 타율 관리가 훌륭해요! 안정감이 느껴져요!';
+      }
+      // 7. 경고 상황 (무안타 경기 많음)
+      else if (recent3ZeroHits >= 2) {
+        const messages = [
+          '⚠️ 최근 무안타 경기가 많아요. 조금만 더 집중해봐요!',
+          '📉 안타가 나오지 않고 있어요. 타격 폼을 점검해봐요!',
+          '😰 최근 안타가 적어요. 조금만 더 힘내봐요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (avgDecreasing && avgPoor) {
+        performanceMessage = '📉 타율이 내려가고 있어요. 타격 폼을 점검해봐요!';
+      } else if (hitsDecreasing && avgDecreasing) {
+        performanceMessage = '💔 안타와 타율이 모두 내려가고 있어요. 조금만 더 집중해봐요!';
+      }
+      // 8. 전반적 평가
+      else if (overallAvg.avg >= 0.350 && overallAvg.hits >= 1.5) {
+        performanceMessage = '🌟 전반적으로 완벽한 타격을 보여주고 있어요!';
+      } else if (overallAvg.avg >= 0.300) {
+        performanceMessage = '👍 전반적으로 좋은 타격을 보여주고 있어요!';
+      } else if (recent5Avg.avg >= 0.250) {
+        performanceMessage = '💼 최근 5경기 평균 타율이 2할 5푼이에요. 나쁘지 않아요!';
       }
     }
+    
+    // 기존 isAvgIncreasing 변수는 performanceMessage가 있을 때만 사용
+    const isAvgIncreasing = performanceMessage !== '';
 
     // 구단 색상 가져오기
     const teamColors = getTeamColors(player?.team);
@@ -623,9 +861,506 @@ export default function Profile({ player, visible, onClose }: ProfileProps) {
           </Svg>
         </View>
         
-        {/* 타율 증가 멘트 */}
-        {isAvgIncreasing && (
-          <Text style={styles.avgIncreaseMessage}>최근 타격감이 올라오고 있어요!</Text>
+        {/* 타격 성적 멘트 */}
+        {performanceMessage !== '' && (
+          <Text style={styles.avgIncreaseMessage}>{performanceMessage}</Text>
+        )}
+      </View>
+    );
+  };
+
+  // 투수 최근 성적 변화 추이 그래프 컴포넌트
+  const RecentPitcherPerformanceChart = () => {
+    const [visibleBars, setVisibleBars] = useState(0);
+    const [visibleLines, setVisibleLines] = useState(0);
+    const [barHeights, setBarHeights] = useState<number[]>([]);
+
+    if (pitcherGamesLoading) {
+      return (
+        <View style={styles.chartLoadingContainer}>
+          <ActivityIndicator size="small" color="#7896AA" />
+        </View>
+      );
+    }
+
+    if (recentPitcherGames.length === 0) {
+      return null;
+    }
+
+    const chartWidth = width * 0.8;
+    const chartHeight = 200;
+    const padding = 40;
+    const chartInnerWidth = chartWidth - padding * 2;
+    const chartInnerHeight = chartHeight - padding * 2;
+
+    // IP 파싱 함수 (예: "6.0", "6 1/3" 등)
+    const parseIP = (ipStr: string): number => {
+      if (!ipStr || ipStr === '') return 0;
+      try {
+        // "6 1/3" 형식 처리
+        if (ipStr.includes(' ')) {
+          const parts = ipStr.split(' ');
+          const whole = parseFloat(parts[0]) || 0;
+          if (parts[1] && parts[1].includes('/')) {
+            const [num, den] = parts[1].split('/').map(Number);
+            return whole + (num / den);
+          }
+          return whole;
+        }
+        return parseFloat(ipStr) || 0;
+      } catch {
+        return 0;
+      }
+    };
+
+    // 데이터 처리
+    const processedData = recentPitcherGames.map(game => {
+      const ip = parseIP(game.IP || '0');
+      const er = parseFloat(game.ER || '0') || 0;
+      return {
+        date: game.일자,
+        ip: ip,
+        er: er,
+      };
+    });
+
+    // 최대값 계산 (Y축 스케일링용)
+    const maxIP = Math.max(...processedData.map(d => d.ip), 1);
+    const maxER = Math.max(...processedData.map(d => d.er), 1);
+
+    // 애니메이션 효과: 순차적으로 표시
+    useEffect(() => {
+      setVisibleBars(0);
+      setVisibleLines(0);
+      setBarHeights(new Array(processedData.length).fill(0));
+      
+      // 막대 그래프 순차 표시 및 높이 증가 애니메이션
+      processedData.forEach((data, index) => {
+        const fullHeight = (data.ip / maxIP) * chartInnerHeight;
+        const delay = index * 150;
+        
+        setTimeout(() => {
+          setVisibleBars(prev => prev + 1);
+          
+          // 막대 높이를 점진적으로 증가
+          const steps = 20;
+          const stepHeight = fullHeight / steps;
+          let currentStep = 0;
+          
+          const heightInterval = setInterval(() => {
+            currentStep++;
+            setBarHeights(prev => {
+              const newHeights = [...prev];
+              newHeights[index] = stepHeight * currentStep;
+              return newHeights;
+            });
+            
+            if (currentStep >= steps) {
+              clearInterval(heightInterval);
+            }
+          }, 20); // 20ms마다 증가 (총 400ms)
+        }, delay);
+      });
+      
+      // 꺾은선 그래프 순차 표시 (날짜 순서대로)
+      const lineInterval = setInterval(() => {
+        setVisibleLines(prev => {
+          if (prev < processedData.length) {
+            return prev + 1;
+          }
+          clearInterval(lineInterval);
+          return prev;
+        });
+      }, 200);
+      
+      return () => {
+        // cleanup은 각 setTimeout과 setInterval이 자체적으로 처리
+      };
+    }, [processedData.length, maxIP, chartInnerHeight]);
+
+    // IP와 ER 변화 추이 분석 (최근 10경기 데이터 활용)
+    let performanceMessage = '';
+    
+    if (processedData.length >= 3) {
+      // 최근 10경기 데이터를 여러 구간으로 나누어 분석
+      const totalGames = processedData.length;
+      
+      // 구간 분할
+      const recent3 = processedData.slice(-3);
+      const recent5 = processedData.slice(-5);
+      const middle3 = totalGames >= 6 ? processedData.slice(-6, -3) : [];
+      const previous5 = totalGames >= 10 ? processedData.slice(-10, -5) : processedData.slice(0, Math.max(0, totalGames - 5));
+      
+      // 평균값 계산
+      const calcAvg = (data: typeof processedData) => {
+        if (data.length === 0) return { ip: 0, er: 0 };
+        return {
+          ip: data.reduce((sum, d) => sum + d.ip, 0) / data.length,
+          er: data.reduce((sum, d) => sum + d.er, 0) / data.length,
+        };
+      };
+      
+      const recent3Avg = calcAvg(recent3);
+      const recent5Avg = calcAvg(recent5);
+      const middle3Avg = calcAvg(middle3);
+      const previous5Avg = calcAvg(previous5);
+      const overallAvg = calcAvg(processedData);
+      
+      // 변화량 계산
+      const ipChange5 = recent5Avg.ip - previous5Avg.ip;
+      const erChange5 = recent5Avg.er - previous5Avg.er;
+      const ipChange3 = recent3Avg.ip - (middle3Avg.ip || recent3Avg.ip);
+      const erChange3 = recent3Avg.er - (middle3Avg.er || recent3Avg.er);
+      
+      // 최근 3경기 무실점 경기 수
+      const recent3ZeroER = recent3.filter(d => d.er === 0).length;
+      const recent5ZeroER = recent5.filter(d => d.er === 0).length;
+      
+      // 최근 3경기 고품질 스타트 (IP >= 6, ER <= 2)
+      const recent3Quality = recent3.filter(d => d.ip >= 6 && d.er <= 2).length;
+      
+      // 안정성 판단 (표준편차 기반)
+      const calcStdDev = (data: typeof processedData, type: 'ip' | 'er') => {
+        if (data.length < 2) return 0;
+        const avg = calcAvg(data)[type];
+        const variance = data.reduce((sum, d) => sum + Math.pow(d[type] - avg, 2), 0) / data.length;
+        return Math.sqrt(variance);
+      };
+      
+      const ipStdDev = calcStdDev(recent5, 'ip');
+      const erStdDev = calcStdDev(recent5, 'er');
+      
+      // 판단 기준
+      const ipStable = Math.abs(ipChange5) < 0.5 && ipStdDev < 1.0;
+      const erStable = Math.abs(erChange5) < 0.5 && erStdDev < 1.0;
+      const erExcellent = recent5Avg.er < 1.0;
+      const erGood = recent5Avg.er < 2.0;
+      const erFair = recent5Avg.er < 3.0;
+      const erPoor = recent5Avg.er >= 4.0;
+      const ipStrong = recent5Avg.ip >= 6.0;
+      const ipVeryStrong = recent5Avg.ip >= 7.0;
+      
+      // 개선/악화 판단
+      const erDecreasing = erChange5 < -0.5;
+      const erDecreasing3 = erChange3 < -0.5;
+      const erIncreasing = erChange5 > 0.8;
+      const ipIncreasing = ipChange5 > 0.8;
+      const ipIncreasing3 = ipChange3 > 0.8;
+      
+      // 멘트 생성 (우선순위 순 - 재미있고 생동감 있게)
+      
+      // 1. 최고의 상태 (무실점 연속)
+      if (recent3ZeroER === 3) {
+        const messages = [
+          '🔥 3경기 연속 무실점! 타자들이 포기할 만해요!',
+          '⚡ 완벽한 "벽"이 되었어요! 누가 이 투수를 넘어설 수 있나요?',
+          '🛡️ 3연속 무실점! 이거 완전 철벽 수비 아니에요?',
+          '💎 3연속 무실점! 타자들이 포기할 만해요!',
+          '🏆 3경기 연속 무실점! 완전 에이스 모드예요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (recent3ZeroER === 2 && recent3Avg.er < 0.5) {
+        const messages = [
+          '⚡ 거의 무실점 수준! 타자들이 포기할 만해요!',
+          '🔥 2경기 무실점! 완전 벽이 되었어요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (recent5ZeroER >= 3) {
+        const messages = [
+          '🛡️ 최근 5경기 중 3경기 무실점! 이거 완전 철벽 아니에요?',
+          '💎 최근 5경기 중 3경기 무실점! 타자들이 힘들어 보여요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      }
+      // 2. 완벽한 선발투수 (이닝 많이, 자책점 적게)
+      else if (ipVeryStrong && erExcellent && ipStable) {
+        const messages = [
+          '💎 완벽한 선발투수! 이닝도 많이 던지고 자책점도 거의 없어요!',
+          '⭐ 이거 완전 에이스 아니에요? 이닝도 길고 자책점도 없네요!',
+          '🏆 선발투수의 교과서 같은 모습이에요!',
+          '🔥 7이닝 이상 던지는데 자책점 1점대? 이거 완전 에이스예요!',
+          '⚡ 이닝도 길고 자책점도 없어요! 완전 선발투수 모범이에요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (ipStrong && erExcellent && recent3Quality === 3) {
+        const messages = [
+          '⭐ 최근 3경기 모두 고품질 스타트! 이거 완전 에이스 모드예요!',
+          '🔥 최근 3경기 모두 완벽해요! 선발투수다운 모습이에요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      }
+      // 3. 개선 추세 (자책점 크게 감소)
+      else if (erDecreasing3 && recent3Avg.er < 1.0 && middle3Avg.er > 2.0) {
+        const messages = [
+          '📈 자책점이 반으로 줄었어요! 완전히 각성한 모드예요!',
+          '🚀 자책점이 반토막났어요! 이거 완전 부활 아니에요?',
+          '✨ 완전히 달라졌어요! 자책점 관리가 완벽해졌네요!',
+          '🔥 자책점이 반으로 줄었어요! 완전히 달라진 모습이에요!',
+          '⚡ 자책점이 크게 줄었어요! 이거 완전 각성 모드예요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (erDecreasing && erGood && ipStable) {
+        const messages = [
+          '🚀 자책점이 계속 줄어들고 있어요! 상승세가 눈에 띄네요!',
+          '📈 자책점이 내려가고 있어요! 좋은 흐름이 이어지고 있어요!',
+          '✨ 점점 나아지고 있어요! 자책점 관리가 좋아지고 있네요!',
+          '🔥 자책점이 줄어들고 있어요! 좋은 추세예요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (erDecreasing3 && recent3Avg.er < 1.5) {
+        const messages = [
+          '✨ 최근 자책점이 크게 줄었어요! 좋은 흐름이 이어지고 있어요!',
+          '📈 최근 자책점이 내려가고 있어요! 좋은 추세예요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      }
+      // 4. 이닝 소화력 증가
+      else if (ipIncreasing3 && erGood && recent3Avg.ip >= 7) {
+        const messages = [
+          '💪 이닝 소화력이 폭발했어요! 체력이 최고조예요!',
+          '🏋️ 이닝을 많이 던지네요! 체력이 완전 좋아졌어요!',
+          '🔥 이닝 소화력이 늘어났어요! 선발투수다운 모습이에요!',
+          '⚡ 7이닝 이상 던지는데 자책점도 적어요! 완전 에이스예요!',
+          '💎 이닝 소화력이 늘어났어요! 체력 관리가 완벽해요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (ipIncreasing && erFair && ipStrong) {
+        const messages = [
+          '🏋️ 이닝 소화력이 늘어나며 체력이 좋아지고 있어요!',
+          '💪 이닝을 더 많이 던지고 있어요! 체력이 좋아졌네요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      }
+      // 5. 안정적인 피칭
+      else if (ipStable && erStable && erExcellent) {
+        const messages = [
+          '🎯 기복 없는 편안함, 최근 내내 "철벽 모드"를 유지 중입니다!',
+          '🛡️ 완전 안정적이에요! 매 경기 똑같이 좋은 모습을 보여주고 있어요!',
+          '💎 기복이 전혀 없어요! 이거 완전 에이스 아니에요?',
+          '🔥 매 경기 똑같이 좋아요! 완전 안정적인 피칭이에요!',
+          '⚡ 기복이 전혀 없어요! 완전 신뢰할 수 있는 투수예요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (ipStable && erStable && erGood) {
+        const messages = [
+          '🛡️ 매우 안정적인 피칭! 매 경기 일정한 모습을 보여주고 있어요!',
+          '📊 안정적인 피칭이에요! 기복이 없네요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (ipStable && erStable && erFair) {
+        const messages = [
+          '📊 안정적인 피칭을 보여주고 있어요. 기복이 없네요!',
+          '🛡️ 기복 없는 피칭이에요! 안정적이네요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      }
+      // 6. 자책점이 좋은 상태
+      else if (erExcellent && ipStrong) {
+        const messages = [
+          '🔥 자책점이 거의 없어요! 타자들이 포기할 만한 수준이에요!',
+          '⚡ 자책점이 1점대예요! 이거 완전 에이스 아니에요?',
+          '💎 자책점 관리가 완벽해요! 타자들이 힘들어 보여요!',
+          '🏆 자책점이 거의 없는데 이닝도 길어요! 완전 에이스예요!',
+          '⭐ 자책점 1점대에 이닝도 길어요! 완전 선발투수 모범이에요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (erGood && ipStable) {
+        const messages = [
+          '✅ 자책점 관리가 훌륭해요! 안정감이 느껴져요!',
+          '🛡️ 자책점이 2점대예요! 안정적인 피칭이에요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      }
+      // 7. 경고 상황
+      else if (erIncreasing && erPoor) {
+        const messages = [
+          '⚠️ 최근 자책점이 늘어나고 있어요. 조금만 더 집중해봐요!',
+          '📉 자책점이 올라가고 있어요. 컨트롤에 신경 써봐요!',
+          '😰 자책점이 늘어나고 있어요. 조금만 더 힘내봐요!',
+          '💔 자책점이 올라가고 있어요. 컨트롤에 집중해봐요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      } else if (erIncreasing && erFair) {
+        const messages = [
+          '📉 자책점이 조금씩 늘어나고 있어요. 컨트롤에 신경 써봐요!',
+          '⚠️ 자책점이 올라가고 있어요. 조금만 더 집중해봐요!',
+        ];
+        performanceMessage = messages[Math.floor(Math.random() * messages.length)];
+      }
+      // 8. 전반적 평가
+      else if (overallAvg.er < 1.5 && overallAvg.ip >= 6) {
+        performanceMessage = '🌟 전반적으로 완벽한 피칭을 보여주고 있어요!';
+      } else if (overallAvg.er < 2.5) {
+        performanceMessage = '👍 전반적으로 좋은 피칭을 보여주고 있어요!';
+      } else if (recent5Avg.er < 3.0) {
+        performanceMessage = '💼 최근 5경기 평균 자책점이 3점대예요. 나쁘지 않아요!';
+      }
+    }
+
+    // 구단 색상 가져오기
+    const teamColors = getTeamColors(player?.team);
+    const barColor = addOpacity(teamColors.primary, 0.6);
+    const lineColor = teamColors.secondary;
+
+    // 좌표 계산 함수
+    const getX = (index: number) => padding + (index / (processedData.length - 1 || 1)) * chartInnerWidth;
+    const getYForIP = (ip: number) => padding + chartInnerHeight - (ip / maxIP) * chartInnerHeight;
+    const getYForER = (er: number) => padding + chartInnerHeight - (er / maxER) * chartInnerHeight;
+
+    return (
+      <View style={styles.recentChartContainer}>
+        <Text style={styles.recentChartTitle}>최근 성적 변화 추이</Text>
+        <View style={styles.chartWrapper}>
+          <Svg width={chartWidth} height={chartHeight}>
+            {/* 범례 (오른쪽 상단, 가로 배치) */}
+            <G>
+              {/* 막대 그래프 범례 */}
+              <Rect
+                x={chartWidth - 155}
+                y={8}
+                width={12}
+                height={12}
+                fill={barColor}
+                rx={2}
+              />
+              <SvgText
+                x={chartWidth - 140}
+                y={18}
+                fontSize="9"
+                fill="#666666"
+              >
+                투구 이닝(IP)
+              </SvgText>
+              
+              {/* 꺾은선 그래프 범례 */}
+              <Line
+                x1={chartWidth - 85}
+                y1={14}
+                x2={chartWidth - 73}
+                y2={14}
+                stroke={lineColor}
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <Circle
+                cx={chartWidth - 79}
+                cy={14}
+                r={3}
+                fill={lineColor}
+              />
+              <SvgText
+                x={chartWidth - 70}
+                y={18}
+                fontSize="9"
+                fill="#666666"
+              >
+                자책점(ER)
+              </SvgText>
+            </G>
+            {/* Y축 그리드선 */}
+            {[0, 0.25, 0.5, 0.75, 1.0].map(scale => {
+              const y = padding + chartInnerHeight - scale * chartInnerHeight;
+              return (
+                <Line
+                  key={`grid-${scale}`}
+                  x1={padding}
+                  y1={y}
+                  x2={padding + chartInnerWidth}
+                  y2={y}
+                  stroke="#E0E0E0"
+                  strokeWidth="1"
+                  opacity={0.3}
+                />
+              );
+            })}
+
+            {/* 막대 그래프 (투구 이닝) - 아래에서 위로 증가 애니메이션 */}
+            {processedData.map((data, index) => {
+              if (index >= visibleBars) return null;
+              
+              const x = getX(index);
+              const barWidth = chartInnerWidth / processedData.length * 0.6;
+              const barX = x - barWidth / 2;
+              const fullBarHeight = (data.ip / maxIP) * chartInnerHeight;
+              const currentBarHeight = barHeights[index] || 0;
+              const barY = padding + chartInnerHeight - currentBarHeight;
+              
+              return (
+                <Rect
+                  key={`bar-${index}`}
+                  x={barX}
+                  y={barY}
+                  width={barWidth}
+                  height={currentBarHeight}
+                  fill={barColor}
+                  rx={4}
+                />
+              );
+            })}
+
+            {/* 꺾은선 그래프 (자책점) - 날짜 순서대로 순차 표시 */}
+            {processedData.length > 1 && processedData.map((data, index) => {
+              if (index === 0 || index > visibleLines) return null;
+              
+              const x1 = getX(index - 1);
+              const y1 = getYForER(processedData[index - 1].er);
+              const x2 = getX(index);
+              const y2 = getYForER(data.er);
+              
+              return (
+                <Line
+                  key={`line-${index}`}
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke={lineColor}
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                />
+              );
+            })}
+
+            {/* 자책점 점 - 순차적으로 나타남 */}
+            {processedData.map((data, index) => {
+              if (index >= visibleLines) return null;
+              
+              const x = getX(index);
+              const y = getYForER(data.er);
+              
+              return (
+                <Circle
+                  key={`dot-${index}`}
+                  cx={x}
+                  cy={y}
+                  r={4}
+                  fill={lineColor}
+                />
+              );
+            })}
+
+            {/* X축 라벨 (일자) */}
+            {processedData.map((data, index) => {
+              const x = getX(index);
+              return (
+                <SvgText
+                  key={`label-${index}`}
+                  x={x}
+                  y={chartHeight - 10}
+                  fontSize="10"
+                  fill="#666666"
+                  textAnchor="middle"
+                >
+                  {data.date}
+                </SvgText>
+              );
+            })}
+          </Svg>
+        </View>
+        
+        {/* 성적 변화 멘트 */}
+        {performanceMessage && (
+          <Text style={styles.avgIncreaseMessage}>{performanceMessage}</Text>
         )}
       </View>
     );
@@ -712,6 +1447,11 @@ export default function Profile({ player, visible, onClose }: ProfileProps) {
             {/* 최근 성적 변화 추이 그래프 (타자만) */}
             {player.batting_average !== undefined && (
               <RecentPerformanceChart />
+            )}
+
+            {/* 최근 성적 변화 추이 그래프 (투수만) */}
+            {player.era !== undefined && (
+              <RecentPitcherPerformanceChart />
             )}
 
             {/* 통계 섹션 */}
