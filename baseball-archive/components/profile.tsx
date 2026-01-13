@@ -11,8 +11,8 @@ import {
   View,
 } from 'react-native';
 import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
-import { Player } from '../types/player';
 import { API_URL } from '../config/api';
+import { Player } from '../types/player';
 
 const { width } = Dimensions.get('window');
 
@@ -478,17 +478,17 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.4)',
     zIndex: 2,
   },
   profileImagePlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     backgroundColor: 'rgba(120, 150, 170, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -497,18 +497,18 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   profileImageText: {
-    fontSize: 40,
+    fontSize: 56,
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
   teamLogoContainer: {
     position: 'absolute',
-    top: 70,
+    top: 100,
     zIndex: 3,
   },
   playerInfo: {
     alignItems: 'center',
-    marginTop: 50,
+    marginTop: 40,
     marginBottom: 16,
   },
   playerName: {
@@ -523,8 +523,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   teamLogo: {
-    width: 70,
-    height: 70,
+    width: 80,
+    height: 80,
   },
   playerPosition: {
     fontSize: 16,

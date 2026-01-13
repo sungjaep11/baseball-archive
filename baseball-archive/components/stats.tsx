@@ -583,12 +583,27 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
       {/* 예상 승률 */}
       {hasData && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>예상 승률</Text>
-          <BlurView intensity={80} tint="light" style={[styles.winRateContainer, { backgroundColor: winRateBackgroundColor }]}>
-            <Text style={styles.winRateValue}>{(expectedWinRate * 100).toFixed(1)}%</Text>
-            <Text style={styles.winRateMessage}>{winRateMessage}</Text>
-          </BlurView>
-          <Text style={styles.rankText}>예상 순위: {expectedRank}위</Text>
+          <Text style={styles.sectionTitle}>예상 성적</Text>
+          <View style={styles.predictionGrid}>
+            <BlurView intensity={80} tint="light" style={[styles.predictionCard, { backgroundColor: winRateBackgroundColor }]}>
+              <Text style={styles.predictionLabel}>예상 승률</Text>
+              <Text style={styles.predictionValue}>{(expectedWinRate * 100).toFixed(1)}%</Text>
+              <Text style={styles.predictionMessage}>{winRateMessage}</Text>
+            </BlurView>
+            <BlurView intensity={80} tint="light" style={styles.predictionCard}>
+              <Text style={styles.predictionLabel}>예상 순위</Text>
+              <Text style={styles.predictionValue}>{expectedRank}위</Text>
+              <Text style={styles.predictionMessage}>
+                {expectedRank <= 3 
+                  ? '상위권 진입이 유력합니다!' 
+                  : expectedRank <= 5 
+                  ? '중위권 경쟁이 치열하겠네요.'
+                  : expectedRank <= 7
+                  ? '하위권 탈출을 노려야 합니다.'
+                  : '리빌딩이 시급합니다...'}
+              </Text>
+            </BlurView>
+          </View>
         </View>
       )}
     </ScrollView>
@@ -691,36 +706,38 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1976D2',
   },
-  winRateContainer: {
+  predictionGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  predictionCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 12,
-    padding: 24,
+    padding: 20,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
     overflow: 'hidden',
   },
-  winRateValue: {
-    fontSize: 48,
+  predictionLabel: {
+    fontSize: 14,
+    color: '#757575',
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  predictionValue: {
+    fontSize: 40,
     fontWeight: 'bold',
     color: '#7896AA',
     marginBottom: 12,
   },
-  winRateMessage: {
-    fontSize: 18,
+  predictionMessage: {
+    fontSize: 14,
     color: '#424242',
     textAlign: 'center',
-  },
-  rankText: {
-    fontSize: 24,
-    color: '#7896AA',
-    textAlign: 'center',
-    marginTop: 20,
-    fontWeight: 'bold',
+    lineHeight: 20,
   },
   lineupContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
