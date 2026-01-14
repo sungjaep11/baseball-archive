@@ -1,7 +1,7 @@
 """
-KBO 타자 최근 10경기 기록 크롤링 스크립트
+KBO 타자 2025 성적 크롤링 스크립트
 https://www.koreabaseball.com/Record/Player/HitterDetail/Basic.aspx?playerId=76232
-각 선수의 상세 페이지에서 "최근 10경기" 테이블을 크롤링하여 DB에 저장
+각 선수의 상세 페이지에서 "2025 성적" 테이블을 크롤링하여 DB에 저장
 """
 
 from selenium import webdriver
@@ -14,7 +14,6 @@ from webdriver_manager.chrome import ChromeDriverManager
 import pymysql
 from pymysql.cursors import DictCursor
 import time
-import re
 from config.db_config import DB_CONFIG
 
 # 선수 상세 페이지 URL 패턴
@@ -114,7 +113,7 @@ def crawl_recent_10_games(driver, player_id, player_name):
                 if '일자' in table_text or '최근' in table_text:
                     print(f"  ✓ 테이블 발견: {selector}")
                     break
-            except:
+            except Exception:
                 continue
         
         if not table:
@@ -273,10 +272,227 @@ def save_games_to_db(cursor, conn, games_data):
         import traceback
         traceback.print_exc()
 
+def crawl_2025_score(driver, player_id, player_name, debug=False):
+    """
+    선수 상세 페이지에서 "2025 성적" 테이블을 크롤링합니다.
+    (수정됨: 단일 행 파싱 로직 적용)
+    """
+    try:
+        # 1. 선수 상세 페이지로 이동
+        detail_url = HITTER_DETAIL_URL.format(id=player_id)
+        driver.get(detail_url)
+        # ... (기존 대기 로직 유지) ...
+        time.sleep(2)
+        
+        # 2. 2025 성적 테이블 찾기 (기존 로직 활용하되 범위 좁힘)
+        # KBO 페이지 구조상 '정규시즌 성적' 테이블이 가장 위에 있고 큽니다.
+        target_row = None
+        
+        # 테이블의 모든 행을 순회하며 '2025'가 있는 행을 찾습니다.
+        # table.tData 클래스가 주로 데이터 테이블입니다.
+        rows = driver.find_elements(By.CSS_SELECTOR, "table.tData tbody tr")
+        
+        for row in rows:
+            text = row.text
+            # '2025'년 데이터인지 확인 (혹은 2025 성적만 있는 페이지라면 첫 줄)
+            # 보통 첫 컬럼이나 두번째 컬럼에 연도가 나옵니다.
+            if '2025' in text:
+                target_row = row
+                break
+        
+        if not target_row:
+            print(f"  ⚠️ {player_name}: 2025년 기록 행을 찾을 수 없습니다.")
+            return None
+
+        # 3. 데이터 파싱 (단일 행에서 모든 데이터 추출)
+        cols = target_row.find_elements(By.TAG_NAME, "td")
+        
+        # KBO Basic 페이지의 컬럼 순서 (2024~2025 기준, 변동 가능성 있음)
+        # 0: 연도, 1: 팀명, 2: 타율(AVG), 3: 경기(G), 4: 타석(PA), 5: 타수(AB), 
+        # 6: 득점(R), 7: 안타(H), 8: 2루타(2B), 9: 3루타(3B), 10: 홈런(HR), 
+        # 11: 루타(TB), 12: 타점(RBI), 13: 도루(SB), 14: 도실(CS), 15: 희타(SAC), 
+        # 16: 희비(SF), 17: 볼넷(BB), 18: 고의4구(IBB), 19: 사구(HBP), 20: 삼진(SO), 
+        # 21: 병살(GDP), 22: 장타율(SLG), 23: 출루율(OBP), 24: OPS, ...
+        
+        if len(cols) < 20:
+            print(f"  ⚠️ 컬럼 수가 부족합니다. (발견된 컬럼 수: {len(cols)})")
+            return None
+
+        score_data = {
+            'player_id': player_id,
+            '선수명': player_name,
+            # 인덱스는 실제 페이지 소스를 보고 미세 조정이 필요할 수 있습니다.
+            # 아래는 일반적인 KBO 기록실 순서입니다.
+            'AVG': cols[2].text.strip(),
+            'G':   cols[3].text.strip(),
+            'PA':  cols[4].text.strip(),
+            'AB':  cols[5].text.strip(),
+            'R':   cols[6].text.strip(),
+            'H':   cols[7].text.strip(),
+            '2B':  cols[8].text.strip(),
+            '3B':  cols[9].text.strip(),
+            'HR':  cols[10].text.strip(),
+            'TB':  cols[11].text.strip(),
+            'RBI': cols[12].text.strip(),
+            'SB':  cols[13].text.strip(),
+            'CS':  cols[14].text.strip(),
+            'SAC': cols[15].text.strip(),
+            'SF':  cols[16].text.strip(),
+            'BB':  cols[17].text.strip(), # 여기가 문제였던 부분 (같은 줄에 있음)
+            'IBB': cols[18].text.strip(),
+            'HBP': cols[19].text.strip(),
+            'SO':  cols[20].text.strip(),
+            'GDP': cols[21].text.strip(),
+            'SLG': cols[22].text.strip(),
+            'OBP': cols[23].text.strip(),
+            'OPS': cols[24].text.strip() if len(cols) > 24 else ''
+        }
+        
+        print(f"  ✅ {player_name}: 2025 성적 데이터 수집 완료 (BB: {score_data['BB']}, SO: {score_data['SO']})")
+        return score_data
+
+    except Exception as e:
+        print(f"  ❌ {player_name} (ID: {player_id}) 크롤링 오류: {e}")
+        if debug:
+            import traceback
+            traceback.print_exc()
+        return None
+
+def create_2025_score_hitter_table(cursor, conn):
+    """
+    2025 성적 타자 테이블 생성 (SAC, SF 포함)
+    """
+    try:
+        cursor.execute("DROP TABLE IF EXISTS `2025_score_hitter`")
+        conn.commit()
+        
+        query = """
+        CREATE TABLE `2025_score_hitter` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `player_id` VARCHAR(20) NOT NULL,
+            `선수명` VARCHAR(50) NOT NULL,
+            `G` VARCHAR(10),
+            `PA` VARCHAR(10),
+            `AB` VARCHAR(10),
+            `R` VARCHAR(10),
+            `H` VARCHAR(10),
+            `2B` VARCHAR(10),
+            `3B` VARCHAR(10),
+            `HR` VARCHAR(10),
+            `TB` VARCHAR(10),
+            `RBI` VARCHAR(10),
+            `SAC` VARCHAR(10),      -- 희생번트 (확인됨)
+            `SF` VARCHAR(10),       -- 희생플라이 (확인됨)
+            `SB` VARCHAR(10),
+            `CS` VARCHAR(10),
+            `BB` VARCHAR(10),
+            `HBP` VARCHAR(10),
+            `SO` VARCHAR(10),
+            `GDP` VARCHAR(10),
+            `AVG` VARCHAR(10),
+            `OBP` VARCHAR(10),
+            `SLG` VARCHAR(10),
+            `OPS` VARCHAR(10),
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX `idx_player_id` (`player_id`),
+            UNIQUE KEY `unique_player` (`player_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """
+        cursor.execute(query)
+        conn.commit()
+        print("✅ 2025 성적 테이블 생성 완료 (SAC, SF 포함)")
+        
+    except Exception as e:
+        print(f"❌ 테이블 생성 오류: {e}")
+        raise
+
+def save_2025_score_to_db(cursor, conn, score_data):
+    """
+    2025 성적 데이터 저장 (수정된 딕셔너리 키 반영)
+    """
+    if not score_data:
+        return
+    
+    try:
+        # INSERT 쿼리 (모든 컬럼 명시)
+        insert_query = """
+        INSERT INTO `2025_score_hitter` 
+        (`player_id`, `선수명`, `G`, `PA`, `AB`, `R`, `H`, `2B`, `3B`, `HR`, `TB`, `RBI`, 
+         `SAC`, `SF`, `SB`, `CS`, `BB`, `HBP`, `SO`, `GDP`, `AVG`, `OBP`, `SLG`, `OPS`)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            `선수명` = VALUES(`선수명`),
+            `G` = VALUES(`G`),
+            `PA` = VALUES(`PA`),
+            `AB` = VALUES(`AB`),
+            `R` = VALUES(`R`),
+            `H` = VALUES(`H`),
+            `2B` = VALUES(`2B`),
+            `3B` = VALUES(`3B`),
+            `HR` = VALUES(`HR`),
+            `TB` = VALUES(`TB`),
+            `RBI` = VALUES(`RBI`),
+            `SAC` = VALUES(`SAC`),
+            `SF` = VALUES(`SF`),
+            `SB` = VALUES(`SB`),
+            `CS` = VALUES(`CS`),
+            `BB` = VALUES(`BB`),
+            `HBP` = VALUES(`HBP`),
+            `SO` = VALUES(`SO`),
+            `GDP` = VALUES(`GDP`),
+            `AVG` = VALUES(`AVG`),
+            `OBP` = VALUES(`OBP`),
+            `SLG` = VALUES(`SLG`),
+            `OPS` = VALUES(`OPS`)
+        """
+        
+        # 딕셔너리에서 안전하게 값 추출 (.get 사용)
+        cursor.execute(insert_query, (
+            score_data['player_id'],
+            score_data['선수명'],
+            score_data.get('G', ''),
+            score_data.get('PA', ''),
+            score_data.get('AB', ''),
+            score_data.get('R', ''),
+            score_data.get('H', ''),
+            score_data.get('2B', ''),
+            score_data.get('3B', ''),
+            score_data.get('HR', ''),
+            score_data.get('TB', ''),
+            score_data.get('RBI', ''),
+            score_data.get('SAC', ''),  # 추가됨
+            score_data.get('SF', ''),   # 추가됨
+            score_data.get('SB', ''),
+            score_data.get('CS', ''),
+            score_data.get('BB', ''),
+            score_data.get('HBP', ''),
+            score_data.get('SO', ''),
+            score_data.get('GDP', ''),
+            score_data.get('AVG', ''),
+            score_data.get('OBP', ''),
+            score_data.get('SLG', ''),
+            score_data.get('OPS', ''),
+        ))
+        
+        conn.commit()
+        print(f"  💾 {score_data['선수명']} 데이터 저장 완료")
+        
+    except Exception as e:
+        print(f"  ❌ DB 저장 오류 ({score_data['선수명']}): {e}")
+        conn.rollback()
+
 def main():
     """메인 크롤링 함수"""
+    import sys
+    
+    # 디버그 모드 확인 (명령줄 인자로 --debug 전달 시)
+    debug_mode = '--debug' in sys.argv
+    
     print("=" * 80)
-    print("🏆 KBO 타자 최근 10경기 기록 크롤링 시작")
+    print("🏆 KBO 타자 2025 성적 크롤링 시작")
+    if debug_mode:
+        print("🔍 디버그 모드 활성화")
     print("=" * 80)
     
     driver = None
@@ -287,8 +503,8 @@ def main():
         conn = pymysql.connect(**DB_CONFIG)
         cursor = conn.cursor(DictCursor)
         
-        # 2. 타자로그 테이블 생성
-        create_hitter_log_table(cursor, conn)
+        # 2. 2025 성적 테이블 생성
+        create_2025_score_hitter_table(cursor, conn)
         
         # 3. DB에서 선수 목록 가져오기
         players = get_players_from_db()
@@ -298,12 +514,11 @@ def main():
             return
         
         # 4. Selenium 드라이버 초기화
-        driver = setup_driver(headless=True)
+        driver = setup_driver(headless=not debug_mode)  # 디버그 모드면 headless 비활성화
         
-        # 5. 각 선수의 최근 10경기 데이터 크롤링
-        total_games = 0
-        success_count = 0
-        fail_count = 0
+        # 5. 각 선수의 2025 성적 데이터 크롤링
+        score_success_count = 0
+        score_fail_count = 0
         
         for idx, player in enumerate(players, 1):
             player_name = player['선수명']
@@ -313,33 +528,34 @@ def main():
             print(f"\n[{idx}/{len(players)}] {player_name} ({team_name}) - ID: {player_id}")
             
             try:
-                # 최근 10경기 데이터 크롤링
-                games = crawl_recent_10_games(driver, player_id, player_name)
+                # 2025 성적 데이터 크롤링
+                score_data = crawl_2025_score(driver, player_id, player_name, debug=debug_mode)
                 
-                if games:
+                if score_data:
                     # DB에 저장
-                    save_games_to_db(cursor, conn, games)
-                    total_games += len(games)
-                    success_count += 1
+                    save_2025_score_to_db(cursor, conn, score_data)
+                    score_success_count += 1
                 else:
-                    print(f"  ⚠️ {player_name}: 경기 데이터가 없습니다.")
-                    fail_count += 1
+                    print(f"  ⚠️ {player_name}: 2025 성적 데이터가 없습니다.")
+                    score_fail_count += 1
                 
                 # 요청 간격 (서버 부하 방지)
                 time.sleep(1)
                 
             except Exception as e:
                 print(f"  ❌ {player_name} 처리 중 오류: {e}")
-                fail_count += 1
+                score_fail_count += 1
+                if debug_mode:
+                    import traceback
+                    traceback.print_exc()
                 continue
         
         # 6. 결과 출력
         print("\n" + "=" * 80)
         print("📊 크롤링 결과")
         print("=" * 80)
-        print(f"✅ 성공: {success_count}명")
-        print(f"❌ 실패: {fail_count}명")
-        print(f"📈 총 수집 경기 수: {total_games}경기")
+        print(f"✅ 2025 성적 성공: {score_success_count}명")
+        print(f"❌ 2025 성적 실패: {score_fail_count}명")
         print("=" * 80)
         
     except Exception as e:
