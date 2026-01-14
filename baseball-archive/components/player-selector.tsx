@@ -21,6 +21,9 @@ interface PlayerSelectorProps {
   reliefPitchers: Player[];
   onStartingPitcherSelect: (player: Player | null) => void;
   onReliefPitcherSelect: (player: Player | null) => void;
+  initialExpandedPosition?: PlayerPosition | 'starting' | 'relief' | null;
+  onExpandedPositionSet?: () => void;
+  filteredPosition?: PlayerPosition | 'starting' | 'relief' | null;
 }
 
 export default function PlayerSelector({ 
@@ -29,9 +32,22 @@ export default function PlayerSelector({
   startingPitcher,
   reliefPitchers,
   onStartingPitcherSelect,
-  onReliefPitcherSelect
+  onReliefPitcherSelect,
+  initialExpandedPosition,
+  onExpandedPositionSet,
+  filteredPosition
 }: PlayerSelectorProps) {
   const [expandedPosition, setExpandedPosition] = useState<PlayerPosition | 'starting' | 'relief' | null>(null);
+  
+  // initialExpandedPosition이 변경되면 해당 포지션을 펼침
+  useEffect(() => {
+    if (initialExpandedPosition) {
+      setExpandedPosition(initialExpandedPosition);
+      if (onExpandedPositionSet) {
+        onExpandedPositionSet();
+      }
+    }
+  }, [initialExpandedPosition, onExpandedPositionSet]);
   const [playersData, setPlayersData] = useState<Record<PlayerPosition, Player[]> | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -225,7 +241,7 @@ export default function PlayerSelector({
       >
         
         {/* 선발 투수 섹션 */}
-        {playersData && playersData.pitcher && (
+        {playersData && playersData.pitcher && (filteredPosition === null || filteredPosition === 'starting') && (
           <View style={styles.positionSection}>
             <TouchableOpacity
               style={styles.positionHeaderContainer}
@@ -294,7 +310,7 @@ export default function PlayerSelector({
         )}
 
         {/* 불펜 투수 섹션 */}
-        {playersData && playersData.pitcher && (
+        {playersData && playersData.pitcher && (filteredPosition === null || filteredPosition === 'relief') && (
           <View style={styles.positionSection}>
             <TouchableOpacity
               style={styles.positionHeaderContainer}
@@ -368,7 +384,7 @@ export default function PlayerSelector({
         )}
 
         {/* 나머지 포지션 섹션 */}
-        {positions.map((position) => {
+        {positions.filter(position => filteredPosition === null || filteredPosition === position).map((position) => {
           const players = playersData[position] || [];
           const expanded = expandedPosition === position;
           const selectedPlayer = selectedPlayers[position];

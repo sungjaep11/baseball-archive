@@ -37,6 +37,8 @@ export default function BaseballField() {
     const [reliefPitchers, setReliefPitchers] = useState<Player[]>([]);
     const [profilePlayer, setProfilePlayer] = useState<Player | null>(null);
     const [isProfileVisible, setIsProfileVisible] = useState(false);
+    const [initialExpandedPosition, setInitialExpandedPosition] = useState<PlayerPosition | 'starting' | 'relief' | null>(null);
+    const [filteredPosition, setFilteredPosition] = useState<PlayerPosition | 'starting' | 'relief' | null>(null);
 
     // --- PanResponder Logic ---
     const panResponder = useRef(
@@ -64,8 +66,15 @@ export default function BaseballField() {
     const handleTabSelect = (tabName: string) => {
         if (isPanelOpen && activeTab === tabName) {
             closePanel();
+            // 패널이 닫힐 때 필터 초기화
+            setInitialExpandedPosition(null);
+            setFilteredPosition(null);
         } else {
             setActiveTab(tabName);
+            // 사용자가 직접 탭을 열었을 때는 항상 필터 초기화
+            // (아이콘 클릭 시에는 handlePlayerIconPress에서 필터를 설정함)
+            setInitialExpandedPosition(null);
+            setFilteredPosition(null);
             openPanel();
         }
     };
@@ -84,6 +93,8 @@ export default function BaseballField() {
     const closePanel = () => {
         setIsPanelOpen(false);
         setActiveTab(null);
+        setInitialExpandedPosition(null);
+        setFilteredPosition(null);
         Animated.timing(slideAnim, {
             toValue: PANEL_HEIGHT,
             duration: 300,
@@ -135,10 +146,21 @@ export default function BaseballField() {
             : require('../assets/images/player-black.png');
     };
 
-    const handlePlayerIconPress = (player: Player | null) => {
+    const handlePlayerIconPress = (player: Player | null, position?: PlayerPosition | 'starting' | 'relief') => {
         if (player) {
+            // 선수가 선택되어 있으면 프로필 표시
             setProfilePlayer(player);
             setIsProfileVisible(true);
+        } else if (position) {
+            // 선수가 선택되지 않았고 포지션이 제공되면 선수 선택 탭 열기
+            // 필터를 먼저 설정한 후 탭 열기
+            setFilteredPosition(position);
+            setInitialExpandedPosition(position);
+            // handleTabSelect를 직접 호출하지 않고 상태만 변경
+            if (!isPanelOpen || activeTab !== 'roster') {
+                setActiveTab('roster');
+                openPanel();
+            }
         }
     };
 
@@ -158,6 +180,12 @@ export default function BaseballField() {
                     reliefPitchers={reliefPitchers}
                     onStartingPitcherSelect={handleStartingPitcherSelect}
                     onReliefPitcherSelect={handleReliefPitcherSelect}
+                    initialExpandedPosition={initialExpandedPosition}
+                    onExpandedPositionSet={() => {
+                        setInitialExpandedPosition(null);
+                        setFilteredPosition(null);
+                    }}
+                    filteredPosition={filteredPosition}
                 />
             );
             case 'stats': return <Stats selectedPlayers={selectedPlayers} startingPitcher={startingPitcher} reliefPitchers={reliefPitchers} />;
@@ -192,7 +220,7 @@ export default function BaseballField() {
                     {/* 선발 투수 */}
                     <TouchableOpacity 
                         style={[styles.playerContainer, styles.pitcher]}
-                        onPress={() => handlePlayerIconPress(startingPitcher)}
+                        onPress={() => handlePlayerIconPress(startingPitcher || null, 'starting')}
                         activeOpacity={0.7}
                     >
                         {startingPitcher && <View style={styles.nameTag}><Text style={styles.nameText}>{startingPitcher.name}</Text></View>}
@@ -205,7 +233,7 @@ export default function BaseballField() {
                     {/* 불펜 투수 1 */}
                     <TouchableOpacity 
                         style={[styles.playerContainer, styles.relief1]}
-                        onPress={() => handlePlayerIconPress(reliefPitchers[0] || null)}
+                        onPress={() => handlePlayerIconPress(reliefPitchers[0] || null, 'relief')}
                         activeOpacity={0.7}
                     >
                         {reliefPitchers[0] && <View style={styles.nameTag}><Text style={styles.nameText}>{reliefPitchers[0].name}</Text></View>}
@@ -218,7 +246,7 @@ export default function BaseballField() {
                     {/* 불펜 투수 2 */}
                     <TouchableOpacity 
                         style={[styles.playerContainer, styles.relief2]}
-                        onPress={() => handlePlayerIconPress(reliefPitchers[1] || null)}
+                        onPress={() => handlePlayerIconPress(reliefPitchers[1] || null, 'relief')}
                         activeOpacity={0.7}
                     >
                         {reliefPitchers[1] && <View style={styles.nameTag}><Text style={styles.nameText}>{reliefPitchers[1].name}</Text></View>}
@@ -231,7 +259,7 @@ export default function BaseballField() {
                     {/* 불펜 투수 3 */}
                     <TouchableOpacity 
                         style={[styles.playerContainer, styles.relief3]}
-                        onPress={() => handlePlayerIconPress(reliefPitchers[2] || null)}
+                        onPress={() => handlePlayerIconPress(reliefPitchers[2] || null, 'relief')}
                         activeOpacity={0.7}
                     >
                         {reliefPitchers[2] && <View style={styles.nameTag}><Text style={styles.nameText}>{reliefPitchers[2].name}</Text></View>}
@@ -244,7 +272,7 @@ export default function BaseballField() {
                     {/* 불펜 투수 4 */}
                     <TouchableOpacity 
                         style={[styles.playerContainer, styles.relief4]}
-                        onPress={() => handlePlayerIconPress(reliefPitchers[3] || null)}
+                        onPress={() => handlePlayerIconPress(reliefPitchers[3] || null, 'relief')}
                         activeOpacity={0.7}
                     >
                         {reliefPitchers[3] && <View style={styles.nameTag}><Text style={styles.nameText}>{reliefPitchers[3].name}</Text></View>}
@@ -256,7 +284,7 @@ export default function BaseballField() {
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={[styles.playerContainer, styles.catcher]}
-                        onPress={() => handlePlayerIconPress(selectedPlayers['catcher'] || null)}
+                        onPress={() => handlePlayerIconPress(selectedPlayers['catcher'] || null, 'catcher')}
                         activeOpacity={0.7}
                     >
                         {selectedPlayers['catcher'] && <View style={styles.nameTag}><Text style={styles.nameText}>{selectedPlayers['catcher'].name}</Text></View>}
@@ -268,7 +296,7 @@ export default function BaseballField() {
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={[styles.playerContainer, styles.firstBaseman]}
-                        onPress={() => handlePlayerIconPress(selectedPlayers['first'] || null)}
+                        onPress={() => handlePlayerIconPress(selectedPlayers['first'] || null, 'first')}
                         activeOpacity={0.7}
                     >
                         {selectedPlayers['first'] && <View style={styles.nameTag}><Text style={styles.nameText}>{selectedPlayers['first'].name}</Text></View>}
@@ -280,7 +308,7 @@ export default function BaseballField() {
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={[styles.playerContainer, styles.secondBaseman]}
-                        onPress={() => handlePlayerIconPress(selectedPlayers['second'] || null)}
+                        onPress={() => handlePlayerIconPress(selectedPlayers['second'] || null, 'second')}
                         activeOpacity={0.7}
                     >
                         {selectedPlayers['second'] && <View style={styles.nameTag}><Text style={styles.nameText}>{selectedPlayers['second'].name}</Text></View>}
@@ -292,7 +320,7 @@ export default function BaseballField() {
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={[styles.playerContainer, styles.shortstop]}
-                        onPress={() => handlePlayerIconPress(selectedPlayers['shortstop'] || null)}
+                        onPress={() => handlePlayerIconPress(selectedPlayers['shortstop'] || null, 'shortstop')}
                         activeOpacity={0.7}
                     >
                         {selectedPlayers['shortstop'] && <View style={styles.nameTag}><Text style={styles.nameText}>{selectedPlayers['shortstop'].name}</Text></View>}
@@ -304,7 +332,7 @@ export default function BaseballField() {
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={[styles.playerContainer, styles.thirdBaseman]}
-                        onPress={() => handlePlayerIconPress(selectedPlayers['third'] || null)}
+                        onPress={() => handlePlayerIconPress(selectedPlayers['third'] || null, 'third')}
                         activeOpacity={0.7}
                     >
                         {selectedPlayers['third'] && <View style={styles.nameTag}><Text style={styles.nameText}>{selectedPlayers['third'].name}</Text></View>}
@@ -316,7 +344,7 @@ export default function BaseballField() {
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={[styles.playerContainer, styles.leftFielder]}
-                        onPress={() => handlePlayerIconPress(selectedPlayers['left'] || null)}
+                        onPress={() => handlePlayerIconPress(selectedPlayers['left'] || null, 'left')}
                         activeOpacity={0.7}
                     >
                         {selectedPlayers['left'] && <View style={styles.nameTag}><Text style={styles.nameText}>{selectedPlayers['left'].name}</Text></View>}
@@ -328,7 +356,7 @@ export default function BaseballField() {
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={[styles.playerContainer, styles.centerFielder]}
-                        onPress={() => handlePlayerIconPress(selectedPlayers['center'] || null)}
+                        onPress={() => handlePlayerIconPress(selectedPlayers['center'] || null, 'center')}
                         activeOpacity={0.7}
                     >
                         {selectedPlayers['center'] && <View style={styles.nameTag}><Text style={styles.nameText}>{selectedPlayers['center'].name}</Text></View>}
@@ -340,7 +368,7 @@ export default function BaseballField() {
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={[styles.playerContainer, styles.rightFielder]}
-                        onPress={() => handlePlayerIconPress(selectedPlayers['right'] || null)}
+                        onPress={() => handlePlayerIconPress(selectedPlayers['right'] || null, 'right')}
                         activeOpacity={0.7}
                     >
                         {selectedPlayers['right'] && <View style={styles.nameTag}><Text style={styles.nameText}>{selectedPlayers['right'].name}</Text></View>}

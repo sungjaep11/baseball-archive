@@ -218,21 +218,6 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
     }
   }, [expectedWinRate]);
 
-  // 승률에 따른 배경색 계산
-  const winRateBackgroundColor = useMemo(() => {
-    if (expectedWinRate >= 0.600) {
-      return '#E8F5E9'; // 초록색 계열 (좋음)
-    } else if (expectedWinRate >= 0.500) {
-      return '#E3F2FD'; // 파란색 계열 (양호)
-    } else if (expectedWinRate >= 0.400) {
-      return '#FFF9C4'; // 노란색 계열 (보통)
-    } else if (expectedWinRate >= 0.300) {
-      return '#FFE0B2'; // 주황색 계열 (주의)
-    } else {
-      return '#FFEBEE'; // 빨간색 계열 (나쁨)
-    }
-  }, [expectedWinRate]);
-
   // 예상 순위 계산 (KBO는 10개 팀)
   const expectedRank = useMemo(() => {
     // 예상 승률을 기준으로 순위 계산 (더 완화된 구간)
@@ -260,6 +245,23 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
       return 10;
     }
   }, [expectedWinRate]);
+
+  // 순위에 따른 배경색 계산
+  const rankBackgroundColor = useMemo(() => {
+    if (expectedRank === 1) {
+      return '#FFF9C4'; // 금색/노란색 계열 (1위 - 최고)
+    } else if (expectedRank >= 2 && expectedRank <= 3) {
+      return '#E8F5E9'; // 초록색 계열 (2-3위 - 우수)
+    } else if (expectedRank >= 4 && expectedRank <= 5) {
+      return '#E3F2FD'; // 파란색 계열 (4-5위 - 양호)
+    } else if (expectedRank >= 6 && expectedRank <= 7) {
+      return '#FFF9C4'; // 노란색 계열 (6-7위 - 보통)
+    } else if (expectedRank >= 8 && expectedRank <= 9) {
+      return '#FFE0B2'; // 주황색 계열 (8-9위 - 주의)
+    } else {
+      return '#FFEBEE'; // 빨간색 계열 (10위 - 나쁨)
+    }
+  }, [expectedRank]);
 
   // 최적 타순 계산
   const optimalLineup = useMemo(() => {
@@ -606,16 +608,16 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>예상 성적</Text>
           <View style={styles.predictionRow}>
-            <BlurView intensity={80} tint="light" style={[styles.predictionCard, { backgroundColor: winRateBackgroundColor }]}>
+            <BlurView intensity={80} tint="light" style={[styles.predictionCard, { backgroundColor: rankBackgroundColor }]}>
               <Text style={styles.predictionLabel}>예상 승률</Text>
               <Text style={styles.predictionValue}>{(expectedWinRate * 100).toFixed(1)}%</Text>
             </BlurView>
-            <BlurView intensity={80} tint="light" style={[styles.predictionCard, { backgroundColor: winRateBackgroundColor }]}>
+            <BlurView intensity={80} tint="light" style={[styles.predictionCard, { backgroundColor: rankBackgroundColor }]}>
               <Text style={styles.predictionLabel}>예상 순위</Text>
               <Text style={styles.predictionValue}>{expectedRank}위</Text>
             </BlurView>
           </View>
-          <BlurView intensity={80} tint="light" style={[styles.predictionMessageCard, { backgroundColor: winRateBackgroundColor }]}>
+          <BlurView intensity={80} tint="light" style={[styles.predictionMessageCard, { backgroundColor: rankBackgroundColor }]}>
             <Text style={styles.predictionMessage}>{winRateMessage}</Text>
           </BlurView>
         </View>

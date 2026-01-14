@@ -88,6 +88,13 @@ export default function Tutorial() {
         router.push('/');
     };
 
+    const handleSkip = () => {
+        // 건너뛰기 버튼 클릭 시 마지막 대화로 이동
+        setCurrentDialogueIndex(tutorialDialogues.length - 1);
+        setDisplayedText(tutorialDialogues[tutorialDialogues.length - 1].text);
+        setIsTyping(false);
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.backgroundImage}>
@@ -139,6 +146,23 @@ export default function Tutorial() {
                             {/* 말풍선 꼬리 - 중앙 */}
                             <View style={styles.dialogueTail} />
                         </View>
+
+                        {/* 건너뛰기 버튼 (마지막 대화가 아닐 때만 표시) */}
+                        {!isLastDialogue && (
+                            <TouchableOpacity
+                                style={styles.skipButton}
+                                onPress={handleSkip}
+                                activeOpacity={0.8}
+                            >
+                                <BlurView
+                                    intensity={Platform.OS === 'android' ? 30 : 20}
+                                    tint="light"
+                                    style={styles.skipButtonBlur}
+                                >
+                                    <Text style={styles.skipButtonText}>건너뛰기</Text>
+                                </BlurView>
+                            </TouchableOpacity>
+                        )}
 
                         {/* 시작 버튼 (마지막 대화에서만 표시) */}
                         {isLastDialogue && (
@@ -289,6 +313,32 @@ const styles = StyleSheet.create({
         borderColor: 'rgba(255, 255, 255, 0.3)',
     },
     startButtonText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        textAlign: 'center',
+    },
+    skipButton: {
+        position: 'absolute',
+        bottom: 40,
+        right: 20,
+        borderRadius: 25,
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    skipButtonBlur: {
+        backgroundColor: 'rgba(128, 128, 128, 0.8)', // 회색
+        paddingHorizontal: 32,
+        paddingVertical: 16,
+        borderRadius: 25,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+    },
+    skipButtonText: {
         fontSize: 18,
         fontWeight: 'bold',
         color: '#FFFFFF',
