@@ -1,6 +1,7 @@
 import { BlurView } from 'expo-blur';
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
+  Animated,
   Dimensions,
   ScrollView,
   StyleSheet,
@@ -52,6 +53,52 @@ interface TeamAbilities {
   defense: number; // 수비 (0-100)
   pitching: number; // 투수력 (0-100)
 }
+
+// 분포 바 애니메이션 컴포넌트
+const DistributionBar = ({ label, value, count, delay = 0 }: { label: string; value: number; count: number; delay?: number }) => {
+  const [containerWidth, setContainerWidth] = useState(0);
+  const animatedWidth = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (containerWidth > 0) {
+      animatedWidth.setValue(0);
+      Animated.timing(animatedWidth, {
+        toValue: value * containerWidth,
+        duration: 600,
+        delay: delay,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [value, delay, containerWidth, animatedWidth]);
+
+  return (
+    <View style={styles.distributionRow}>
+      <Text style={styles.distributionLabel}>{label}</Text>
+      <View 
+        style={styles.distributionBarContainer}
+        onLayout={(event) => {
+          const { width } = event.nativeEvent.layout;
+          if (width > 0 && containerWidth === 0) {
+            setContainerWidth(width);
+          }
+        }}
+      >
+        <Animated.View 
+          style={[
+            styles.distributionBar, 
+            { width: containerWidth > 0 ? animatedWidth : 0 }
+          ]} 
+        />
+      </View>
+      <Text style={styles.distributionValue}>
+        {(value * 100).toFixed(1)}%
+      </Text>
+      <Text style={styles.distributionCount}>
+        ({count}회)
+      </Text>
+    </View>
+  );
+};
 
 export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers = [] }: StatsProps) {
   // 시뮬레이션 관련 state
@@ -158,7 +205,6 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
 
       const result = await simulateAtBat(batterData, pitcherData);
       setSimulationResult(result);
-      setShowDetailedStats(false); // 상세분석은 기본적으로 접힌 상태
       setShowResultModal(true); // 결과 모달 표시
     } catch (error) {
       console.error('Error simulating at bat:', error);
@@ -924,34 +970,9 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
             
             {simulationResult && (
               <ScrollView style={styles.resultModalBody} showsVerticalScrollIndicator={false}>
-                {/* 대표 결과 */}
-                <View style={styles.resultModalMain}>
-                  <View style={styles.resultBadge}>
-                    <Text style={styles.resultType}>{simulationResult.result}</Text>
-                  </View>
-                  <Text style={styles.resultText}>{simulationResult.text}</Text>
-                  <Text style={styles.resultBases}>진루: {simulationResult.bases}루</Text>
-                </View>
-                
-                {/* 상세분석 토글 버튼 */}
+                {/* 통계 정보 */}
                 {simulationResult.statistics && (
-                  <TouchableOpacity
-                    style={styles.detailToggleButton}
-                    onPress={() => setShowDetailedStats(!showDetailedStats)}
-                  >
-                    <Text style={styles.detailToggleText}>
-                      {showDetailedStats ? '▼' : '▶'} 상세분석
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                
-                {/* 통계 정보 (토글에 따라 표시/숨김) */}
-                {simulationResult.statistics && showDetailedStats && (
                   <View style={styles.statisticsContainer}>
-                    <Text style={styles.statisticsTitle}>
-                      몬테카를로 시뮬레이션 ({simulationResult.statistics.total_simulations}회)
-                    </Text>
-                    
                     {/* 주요 통계 */}
                     <View style={styles.statisticsRow}>
                       <View style={styles.statisticsItem}>
@@ -977,24 +998,14 @@ export default function Stats({ selectedPlayers, startingPitcher, reliefPitchers
                     {/* 결과 분포 */}
                     <View style={styles.distributionContainer}>
                       <Text style={styles.distributionTitle}>결과 분포</Text>
-                      {Object.entries(simulationResult.statistics.distribution).map(([key, value]) => (
-                        <View key={key} style={styles.distributionRow}>
-                          <Text style={styles.distributionLabel}>{key}</Text>
-                          <View style={styles.distributionBarContainer}>
-                            <View 
-                              style={[
-                                styles.distributionBar, 
-                                { width: `${value * 100}%` }
-                              ]} 
-                            />
-                          </View>
-                          <Text style={styles.distributionValue}>
-                            {(value * 100).toFixed(1)}%
-                          </Text>
-                          <Text style={styles.distributionCount}>
-                            ({simulationResult.statistics.counts[key as keyof typeof simulationResult.statistics.counts]}회)
-                          </Text>
-                        </View>
+                      {Object.entries(simulationResult.statistics.distribution).map(([key, value], index) => (
+                        <DistributionBar
+                          key={key}
+                          label={key}
+                          value={value}
+                          count={simulationResult.statistics.counts[key as keyof typeof simulationResult.statistics.counts]}
+                          delay={index * 100}
+                        />
                       ))}
                     </View>
                   </View>
@@ -1279,11 +1290,7 @@ const styles = StyleSheet.create({
   },
   // 통계 정보 스타일
   statisticsContainer: {
-    marginTop: 20,
     width: '100%',
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(120, 150, 170, 0.3)',
   },
   statisticsTitle: {
     fontSize: 16,
@@ -1467,8 +1474,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
   resultModalTitle: {
     fontSize: 22,
@@ -1476,7 +1481,9 @@ const styles = StyleSheet.create({
     color: '#3D5566',
   },
   resultModalBody: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: 0,
   },
   resultModalMain: {
     alignItems: 'center',
