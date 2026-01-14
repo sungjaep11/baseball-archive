@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Baseball Archive",
-    "slug": "baseball-archive",
+    "slug": "nineup",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/Logo.png",

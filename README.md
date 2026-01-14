@@ -68,7 +68,7 @@ KBO 리그 선수 데이터를 활용한 야구 라인업 구성 및 통계 분�
 ## 📁 프로젝트 구조
 
 ```
-baseball-archive/
+nineup/
 ├── app/                    # Expo Router 앱 페이지
 │   └── index.tsx          # 메인 야구장 화면
 ├── components/            # 재사용 가능한 컴포넌트
